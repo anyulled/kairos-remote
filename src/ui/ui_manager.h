@@ -5,8 +5,8 @@
 #include <stdint.h>
 
 /**
- * Manages the 3-column circular LVGL Tileview container, top status bar
- * (BLE state, mute toggle, battery percentage), and bottom 3-dot indicator.
+ * Manages the 3-column circular LVGL Tileview container and compact top status bar
+ * (battery percentage, mute toggle, Bluetooth connection state).
  */
 namespace UiManager {
 

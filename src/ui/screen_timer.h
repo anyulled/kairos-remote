@@ -2,6 +2,7 @@
 #define KAIROS_SCREEN_TIMER_H
 
 #include <lvgl.h>
+#include <stdint.h>
 
 /**
  * Screen 3: Local presentation countdown timer backed by esp_timer_get_time().
@@ -11,6 +12,7 @@
 namespace ScreenTimer {
 
 void create(lv_obj_t *parent);
+void setRemainingSeconds(uint32_t seconds);
 bool isRunning();
 
 } // namespace ScreenTimer

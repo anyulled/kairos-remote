@@ -23,6 +23,8 @@ Instead of a conventional two-button clicker, Kairos-remote pairs as a standard 
 - **Power Management**: LiPo voltage ADC monitoring (`GPIO 8`, 3:1 divider), automatic PWM backlight dimming (`15%` after `10 s` idle, instant wake on touch), and Deep Sleep after `15 min` idle without BLE (wake via physical `PWR` button on `GPIO 6`).
 - **3D-Printable Enclosure (`hardware/enclosure/`)**: Parametric `build123d` & OpenSCAD pebble housing (`STL` / `STEP`) with an isolated `350–500 mAh` LiPo bay, USB-C cutout, side button access, speaker slots, and wrist lanyard loop.
 
+![Kairos-remote 3 LVGL Screens](docs/assets/screens_preview.png)
+
 ### Quick Start
 
 ```bash

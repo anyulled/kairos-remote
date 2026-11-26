@@ -2,6 +2,7 @@
 
 #include "audio/haptic_click.h"
 #include "ble/hid_keyboard.h"
+#include "board_pins.h"
 
 namespace {
 
@@ -17,16 +18,24 @@ struct QuadrantSpec {
     StageAction action;
     const char *title;
     const char *subtitle;
-    int16_t offsetX;
-    int16_t offsetY;
-    uint32_t accentHex;
+    lv_align_t align;
+    int16_t contentOffX;
+    int16_t contentOffY;
+    uint32_t bgIdleHex;
+    uint32_t bgPressedHex;
+    bool showBlackSquare;
+    bool showHomeIcon;
 };
 
 constexpr QuadrantSpec kQuadrants[] = {
-    {StageAction::ESC_OVERVIEW, "ESC",  "Overview", -82, -76, 0x38BDF8},
-    {StageAction::BLACK_SCREEN, "B",    "Black",     82, -76, 0xA855F7},
-    {StageAction::HOME_START,   "HOME", "Inicio",   -82,  76, 0x10B981},
-    {StageAction::FULLSCREEN,   "F",    "Full",      82,  76, 0xF59E0B},
+    {StageAction::ESC_OVERVIEW, "ESC", "(OVERVIEW)",
+     LV_ALIGN_TOP_LEFT, 16, 18, 0x1C3F60, 0x2563EB, false, false},
+    {StageAction::BLACK_SCREEN, "B", "(NEGRO)",
+     LV_ALIGN_TOP_RIGHT, -16, 18, 0x000000, 0x1E293B, true, false},
+    {StageAction::HOME_START, "HOME", "(INICIO " LV_SYMBOL_HOME ")",
+     LV_ALIGN_BOTTOM_LEFT, 16, -18, 0x2D572C, 0x16A34A, false, true},
+    {StageAction::FULLSCREEN, "F", "(PANTALLA\nCOMPLETA)",
+     LV_ALIGN_BOTTOM_RIGHT, -16, -14, 0x16535E, 0x0891B2, false, false},
 };
 
 void dispatchStageAction(StageAction action) {
@@ -62,15 +71,14 @@ void onStageButtonEvent(lv_event_t *e) {
     dispatchStageAction(action);
 }
 
-lv_obj_t *createQuadrantButton(lv_obj_t *parent, const QuadrantSpec &spec) {
-    lv_obj_t *btn = lv_btn_create(parent);
-    lv_obj_set_size(btn, 116, 96);
-    lv_obj_align(btn, LV_ALIGN_CENTER, spec.offsetX, spec.offsetY);
-    lv_obj_set_style_radius(btn, 22, 0);
-    lv_obj_set_style_bg_color(btn, lv_color_hex(0x1E293B), 0);
-    lv_obj_set_style_bg_color(btn, lv_color_hex(spec.accentHex), LV_STATE_PRESSED);
-    lv_obj_set_style_border_width(btn, 2, 0);
-    lv_obj_set_style_border_color(btn, lv_color_hex(spec.accentHex), 0);
+void createQuadrantSector(lv_obj_t *clipCircle, const QuadrantSpec &spec) {
+    lv_obj_t *btn = lv_btn_create(clipCircle);
+    lv_obj_set_size(btn, 204, 204);
+    lv_obj_align(btn, spec.align, 0, 0);
+    lv_obj_set_style_radius(btn, 0, 0);
+    lv_obj_set_style_bg_color(btn, lv_color_hex(spec.bgIdleHex), 0);
+    lv_obj_set_style_bg_color(btn, lv_color_hex(spec.bgPressedHex), LV_STATE_PRESSED);
+    lv_obj_set_style_border_width(btn, 0, 0);
     lv_obj_set_style_shadow_width(btn, 0, 0);
     lv_obj_add_flag(btn, LV_OBJ_FLAG_SCROLL_CHAIN_HOR);
     lv_obj_add_event_cb(
@@ -79,7 +87,7 @@ lv_obj_t *createQuadrantButton(lv_obj_t *parent, const QuadrantSpec &spec) {
 
     lv_obj_t *box = lv_obj_create(btn);
     lv_obj_set_size(box, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-    lv_obj_center(box);
+    lv_obj_align(box, LV_ALIGN_CENTER, spec.contentOffX, spec.contentOffY);
     lv_obj_set_style_bg_opa(box, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(box, 0, 0);
     lv_obj_set_style_pad_all(box, 0, 0);
@@ -91,15 +99,37 @@ lv_obj_t *createQuadrantButton(lv_obj_t *parent, const QuadrantSpec &spec) {
 
     lv_obj_t *title = lv_label_create(box);
     lv_label_set_text(title, spec.title);
-    lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0);
-    lv_obj_set_style_text_color(title, lv_color_hex(0xF8FAFC), 0);
+    lv_obj_set_style_text_font(title, &lv_font_montserrat_28, 0);
+    lv_obj_set_style_text_color(title, lv_color_hex(0xFFFFFF), 0);
 
     lv_obj_t *sub = lv_label_create(box);
     lv_label_set_text(sub, spec.subtitle);
+    lv_obj_set_style_text_align(sub, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_style_text_font(sub, &lv_font_montserrat_14, 0);
-    lv_obj_set_style_text_color(sub, lv_color_hex(0x94A3B8), 0);
+    lv_obj_set_style_text_color(sub, lv_color_hex(0xE2E8F0), 0);
 
-    return btn;
+    if (spec.showBlackSquare) {
+        lv_obj_t *row = lv_obj_create(box);
+        lv_obj_set_size(row, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+        lv_obj_set_style_bg_opa(row, LV_OPA_TRANSP, 0);
+        lv_obj_set_style_border_width(row, 0, 0);
+        lv_obj_set_style_pad_all(row, 0, 0);
+        lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
+        lv_obj_set_flex_align(row, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+        lv_obj_set_style_pad_column(row, 5, 0);
+        lv_obj_clear_flag(row, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_clear_flag(row, LV_OBJ_FLAG_SCROLLABLE);
+
+        lv_obj_set_parent(sub, row);
+
+        lv_obj_t *sq = lv_obj_create(row);
+        lv_obj_set_size(sq, 12, 12);
+        lv_obj_set_style_radius(sq, 2, 0);
+        lv_obj_set_style_bg_color(sq, lv_color_hex(0x000000), 0);
+        lv_obj_set_style_border_width(sq, 1, 0);
+        lv_obj_set_style_border_color(sq, lv_color_hex(0x94A3B8), 0);
+        lv_obj_clear_flag(sq, LV_OBJ_FLAG_CLICKABLE);
+    }
 }
 
 } // namespace
@@ -107,31 +137,61 @@ lv_obj_t *createQuadrantButton(lv_obj_t *parent, const QuadrantSpec &spec) {
 namespace ScreenStage {
 
 void create(lv_obj_t *parent) {
+    // Circular container clips the 4 square quadrants into a 412x412 disc with 4px cross gap
+    lv_obj_t *clipCircle = lv_obj_create(parent);
+    lv_obj_set_size(clipCircle, LCD_WIDTH, LCD_HEIGHT);
+    lv_obj_center(clipCircle);
+    lv_obj_set_style_radius(clipCircle, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_clip_corner(clipCircle, true, 0);
+    lv_obj_set_style_bg_color(clipCircle, lv_color_hex(0x000000), 0);
+    lv_obj_set_style_bg_opa(clipCircle, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_width(clipCircle, 0, 0);
+    lv_obj_set_style_pad_all(clipCircle, 0, 0);
+    lv_obj_clear_flag(clipCircle, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(clipCircle, LV_OBJ_FLAG_SCROLL_CHAIN_HOR);
+
     for (const auto &spec : kQuadrants) {
-        createQuadrantButton(parent, spec);
+        createQuadrantSector(clipCircle, spec);
     }
 
-    // Center ENTER button rendered on top with a dark halo border for clean separation.
-    lv_obj_t *enterBtn = lv_btn_create(parent);
-    lv_obj_set_size(enterBtn, 122, 122);
+    // Center ENTER (OK) circle rendered on top with crisp black halo ring
+    lv_obj_t *enterBtn = lv_btn_create(clipCircle);
+    lv_obj_set_size(enterBtn, 126, 126);
     lv_obj_center(enterBtn);
     lv_obj_set_style_radius(enterBtn, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_bg_color(enterBtn, lv_color_hex(0x0EA5E9), 0);
-    lv_obj_set_style_bg_color(enterBtn, lv_color_hex(0x0369A1), LV_STATE_PRESSED);
-    lv_obj_set_style_border_width(enterBtn, 6, 0);
-    lv_obj_set_style_border_color(enterBtn, lv_color_hex(0x0B0F17), 0);
+    lv_obj_set_style_bg_color(enterBtn, lv_color_hex(0x20586E), 0);
+    lv_obj_set_style_bg_color(enterBtn, lv_color_hex(0x0284C7), LV_STATE_PRESSED);
+    lv_obj_set_style_border_width(enterBtn, 3, 0);
+    lv_obj_set_style_border_color(enterBtn, lv_color_hex(0x4BA3B5), 0);
+    lv_obj_set_style_outline_width(enterBtn, 5, 0);
+    lv_obj_set_style_outline_color(enterBtn, lv_color_hex(0x000000), 0);
     lv_obj_set_style_shadow_width(enterBtn, 0, 0);
     lv_obj_add_flag(enterBtn, LV_OBJ_FLAG_SCROLL_CHAIN_HOR);
     lv_obj_add_event_cb(
         enterBtn, onStageButtonEvent, LV_EVENT_SHORT_CLICKED,
         reinterpret_cast<void *>(static_cast<uintptr_t>(StageAction::ENTER_CONFIRM)));
 
-    lv_obj_t *lbl = lv_label_create(enterBtn);
-    lv_label_set_text(lbl, "ENTER\nOK");
-    lv_obj_set_style_text_align(lbl, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_set_style_text_font(lbl, &lv_font_montserrat_20, 0);
+    lv_obj_t *box = lv_obj_create(enterBtn);
+    lv_obj_set_size(box, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    lv_obj_center(box);
+    lv_obj_set_style_bg_opa(box, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(box, 0, 0);
+    lv_obj_set_style_pad_all(box, 0, 0);
+    lv_obj_set_flex_flow(box, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(box, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_row(box, 2, 0);
+    lv_obj_clear_flag(box, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_clear_flag(box, LV_OBJ_FLAG_SCROLLABLE);
+
+    lv_obj_t *lbl = lv_label_create(box);
+    lv_label_set_text(lbl, "ENTER");
+    lv_obj_set_style_text_font(lbl, &lv_font_montserrat_22, 0);
     lv_obj_set_style_text_color(lbl, lv_color_hex(0xFFFFFF), 0);
-    lv_obj_center(lbl);
+
+    lv_obj_t *okLbl = lv_label_create(box);
+    lv_label_set_text(okLbl, "(OK)");
+    lv_obj_set_style_text_font(okLbl, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_color(okLbl, lv_color_hex(0xE2E8F0), 0);
 }
 
 } // namespace ScreenStage

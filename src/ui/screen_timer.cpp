@@ -9,16 +9,15 @@ namespace {
 
 constexpr int64_t HOLD_RESET_US = 1500000LL; // 1.5 s long-press to reset
 constexpr uint64_t MAX_TIMER_MS = 5999000ULL; // 99:59
+constexpr uint64_t DEFAULT_TIMER_MS = 15ULL * 60000ULL; // 15:00 default ready state
 
-lv_obj_t *s_ringArc = nullptr;
 lv_obj_t *s_timeLabel = nullptr;
-lv_obj_t *s_statusLabel = nullptr;
+lv_obj_t *s_hintLabel = nullptr;
 lv_obj_t *s_playBtn = nullptr;
 lv_obj_t *s_playLabel = nullptr;
 lv_obj_t *s_stopBtn = nullptr;
 
-uint64_t s_remainingMs = 0;
-uint64_t s_totalConfiguredMs = 0;
+uint64_t s_remainingMs = DEFAULT_TIMER_MS;
 int64_t s_targetEndUs = 0;
 bool s_running = false;
 bool s_expired = false;
@@ -51,56 +50,23 @@ void refreshTimerUi(int64_t nowUs) {
         lv_label_set_text(s_timeLabel, buf);
     }
 
-    lv_color_t accent = lv_color_hex(0xF8FAFC);
-    lv_color_t arcColor = lv_color_hex(0x38BDF8);
+    lv_color_t accent = lv_color_hex(0xFFFFFF);
     if (s_expired) {
         const bool blinkOn = ((nowUs / 500000LL) % 2) == 0;
         accent = blinkOn ? lv_color_hex(0xEF4444) : lv_color_hex(0x7F1D1D);
-        arcColor = lv_color_hex(0xEF4444);
     } else if (remMs > 0 && remMs < 120000ULL) {
         accent = lv_color_hex(0xF59E0B);
-        arcColor = lv_color_hex(0xF59E0B);
     }
 
     if (s_timeLabel) {
         lv_obj_set_style_text_color(s_timeLabel, accent, 0);
     }
-    if (s_ringArc) {
-        lv_obj_set_style_arc_color(s_ringArc, arcColor, LV_PART_INDICATOR);
-        int16_t pct = 0;
-        if (s_totalConfiguredMs > 0) {
-            pct = static_cast<int16_t>((remMs * 100ULL) / s_totalConfiguredMs);
-            if (pct > 100) {
-                pct = 100;
-            }
-        }
-        lv_arc_set_value(s_ringArc, pct);
-    }
 
     if (s_playBtn && s_playLabel) {
-        if (s_running) {
-            lv_obj_set_style_bg_color(s_playBtn, lv_color_hex(0xD97706), 0);
-            lv_label_set_text(s_playLabel, LV_SYMBOL_PAUSE " PAUSA");
-        } else {
-            lv_obj_set_style_bg_color(s_playBtn, lv_color_hex(0x059669), 0);
-            lv_label_set_text(s_playLabel, LV_SYMBOL_PLAY " PLAY");
-        }
-    }
-
-    if (s_statusLabel && !s_stopResetTriggered) {
-        if (s_expired) {
-            lv_label_set_text(s_statusLabel, "TIEMPO AGOTADO");
-            lv_obj_set_style_text_color(s_statusLabel, lv_color_hex(0xF87171), 0);
-        } else if (s_running) {
-            lv_label_set_text(s_statusLabel, "EN MARCHA");
-            lv_obj_set_style_text_color(s_statusLabel, lv_color_hex(0x38BDF8), 0);
-        } else if (remMs > 0) {
-            lv_label_set_text(s_statusLabel, "PAUSADO");
-            lv_obj_set_style_text_color(s_statusLabel, lv_color_hex(0xFBBF24), 0);
-        } else {
-            lv_label_set_text(s_statusLabel, "ANADE TIEMPO");
-            lv_obj_set_style_text_color(s_statusLabel, lv_color_hex(0x94A3B8), 0);
-        }
+        lv_obj_set_style_bg_color(
+            s_playBtn, lv_color_hex(s_running ? 0x92400E : 0x1A4A5B), 0);
+        lv_obj_set_style_border_color(
+            s_playBtn, lv_color_hex(s_running ? 0xF59E0B : 0x3B7A8C), 0);
     }
 }
 
@@ -150,11 +116,9 @@ void onStopResetEvent(lv_event_t *e) {
             s_running = false;
             s_expired = false;
             s_remainingMs = 0;
-            s_totalConfiguredMs = 0;
             HapticAudio::playClick();
-            if (s_statusLabel) {
-                lv_label_set_text(s_statusLabel, "REINICIADO");
-                lv_obj_set_style_text_color(s_statusLabel, lv_color_hex(0x38BDF8), 0);
+            if (s_hintLabel) {
+                lv_label_set_text(s_hintLabel, "00:00 RESET");
             }
             refreshTimerUi(nowUs);
         }
@@ -166,11 +130,10 @@ void onStopResetEvent(lv_event_t *e) {
                 s_running = false;
             }
             s_expired = false;
-            refreshTimerUi(nowUs);
-            if (s_statusLabel && s_remainingMs > 0) {
-                lv_label_set_text(s_statusLabel, "MANTEN 1.5s RESET");
-                lv_obj_set_style_text_color(s_statusLabel, lv_color_hex(0xF87171), 0);
+            if (s_hintLabel) {
+                lv_label_set_text(s_hintLabel, "Hold 1.5s: Reset");
             }
+            refreshTimerUi(nowUs);
         }
     } else if (code == LV_EVENT_RELEASED || code == LV_EVENT_PRESS_LOST) {
         s_stopResetTriggered = false;
@@ -198,21 +161,21 @@ void onAddMinutesClicked(lv_event_t *e) {
     if (s_running) {
         s_targetEndUs = nowUs + static_cast<int64_t>(nextMs) * 1000LL;
     }
-    if (nextMs > s_totalConfiguredMs) {
-        s_totalConfiguredMs = nextMs;
+    if (s_hintLabel) {
+        lv_label_set_text(s_hintLabel, "Swipe " LV_SYMBOL_LEFT);
     }
     refreshTimerUi(nowUs);
 }
 
 void createQuickAddButton(lv_obj_t *parent, uint32_t minutes, const char *text, int16_t offX, int16_t offY) {
     lv_obj_t *btn = lv_btn_create(parent);
-    lv_obj_set_size(btn, 68, 68);
+    lv_obj_set_size(btn, 80, 80);
     lv_obj_align(btn, LV_ALIGN_CENTER, offX, offY);
     lv_obj_set_style_radius(btn, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_bg_color(btn, lv_color_hex(0x1E293B), 0);
+    lv_obj_set_style_bg_color(btn, lv_color_hex(0x1A4A5B), 0);
     lv_obj_set_style_bg_color(btn, lv_color_hex(0x0284C7), LV_STATE_PRESSED);
     lv_obj_set_style_border_width(btn, 2, 0);
-    lv_obj_set_style_border_color(btn, lv_color_hex(0x38BDF8), 0);
+    lv_obj_set_style_border_color(btn, lv_color_hex(0x4BA3B5), 0);
     lv_obj_set_style_shadow_width(btn, 0, 0);
     lv_obj_add_flag(btn, LV_OBJ_FLAG_SCROLL_CHAIN_HOR);
     lv_obj_add_event_cb(
@@ -221,7 +184,8 @@ void createQuickAddButton(lv_obj_t *parent, uint32_t minutes, const char *text, 
 
     lv_obj_t *lbl = lv_label_create(btn);
     lv_label_set_text(lbl, text);
-    lv_obj_set_style_text_font(lbl, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_align(lbl, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_text_font(lbl, &lv_font_montserrat_18, 0);
     lv_obj_set_style_text_color(lbl, lv_color_hex(0xF8FAFC), 0);
     lv_obj_center(lbl);
 }
@@ -231,68 +195,76 @@ void createQuickAddButton(lv_obj_t *parent, uint32_t minutes, const char *text, 
 namespace ScreenTimer {
 
 void create(lv_obj_t *parent) {
-    s_ringArc = lv_arc_create(parent);
-    lv_obj_set_size(s_ringArc, 396, 396);
-    lv_obj_center(s_ringArc);
-    lv_arc_set_rotation(s_ringArc, 270);
-    lv_arc_set_bg_angles(s_ringArc, 0, 360);
-    lv_arc_set_range(s_ringArc, 0, 100);
-    lv_arc_set_value(s_ringArc, 0);
-    lv_obj_remove_style(s_ringArc, nullptr, LV_PART_KNOB);
-    lv_obj_set_style_arc_width(s_ringArc, 8, LV_PART_MAIN);
-    lv_obj_set_style_arc_width(s_ringArc, 8, LV_PART_INDICATOR);
-    lv_obj_set_style_arc_color(s_ringArc, lv_color_hex(0x1E293B), LV_PART_MAIN);
-    lv_obj_set_style_arc_color(s_ringArc, lv_color_hex(0x38BDF8), LV_PART_INDICATOR);
-    lv_obj_clear_flag(s_ringArc, LV_OBJ_FLAG_CLICKABLE);
-
+    // Large bold countdown digits in the upper half
     s_timeLabel = lv_label_create(parent);
-    lv_label_set_text(s_timeLabel, "00:00");
+    lv_label_set_text(s_timeLabel, "15:00");
     lv_obj_set_style_text_font(s_timeLabel, &lv_font_montserrat_48, 0);
-    lv_obj_set_style_text_color(s_timeLabel, lv_color_hex(0xF8FAFC), 0);
-    lv_obj_align(s_timeLabel, LV_ALIGN_CENTER, 0, -78);
+    lv_obj_set_style_text_letter_space(s_timeLabel, 3, 0);
+    lv_obj_set_style_text_color(s_timeLabel, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_align(s_timeLabel, LV_ALIGN_CENTER, 0, -96);
 
-    s_statusLabel = lv_label_create(parent);
-    lv_label_set_text(s_statusLabel, "ANADE TIEMPO");
-    lv_obj_set_style_text_font(s_statusLabel, &lv_font_montserrat_14, 0);
-    lv_obj_set_style_text_color(s_statusLabel, lv_color_hex(0x94A3B8), 0);
-    lv_obj_align(s_statusLabel, LV_ALIGN_CENTER, 0, -34);
-
-    // Main transport controls: PLAY/PAUSE and STOP/HOLD-RESET (1.5 s)
+    // Main transport pill buttons: PLAY / PAUSA and STOP / RESET (1.5 s hold)
     s_playBtn = lv_btn_create(parent);
-    lv_obj_set_size(s_playBtn, 126, 54);
-    lv_obj_align(s_playBtn, LV_ALIGN_CENTER, -70, 22);
-    lv_obj_set_style_radius(s_playBtn, 27, 0);
-    lv_obj_set_style_bg_color(s_playBtn, lv_color_hex(0x059669), 0);
+    lv_obj_set_size(s_playBtn, 174, 84);
+    lv_obj_align(s_playBtn, LV_ALIGN_CENTER, -92, 6);
+    lv_obj_set_style_radius(s_playBtn, 42, 0);
+    lv_obj_set_style_bg_color(s_playBtn, lv_color_hex(0x1A4A5B), 0);
+    lv_obj_set_style_bg_color(s_playBtn, lv_color_hex(0x0284C7), LV_STATE_PRESSED);
+    lv_obj_set_style_border_width(s_playBtn, 2, 0);
+    lv_obj_set_style_border_color(s_playBtn, lv_color_hex(0x3B7A8C), 0);
     lv_obj_set_style_shadow_width(s_playBtn, 0, 0);
     lv_obj_add_flag(s_playBtn, LV_OBJ_FLAG_SCROLL_CHAIN_HOR);
     lv_obj_add_event_cb(s_playBtn, onPlayPauseClicked, LV_EVENT_SHORT_CLICKED, nullptr);
 
     s_playLabel = lv_label_create(s_playBtn);
-    lv_label_set_text(s_playLabel, LV_SYMBOL_PLAY " PLAY");
-    lv_obj_set_style_text_font(s_playLabel, &lv_font_montserrat_16, 0);
+    lv_label_set_text(s_playLabel, "PLAY /\nPAUSA");
+    lv_obj_set_style_text_align(s_playLabel, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_text_font(s_playLabel, &lv_font_montserrat_20, 0);
+    lv_obj_set_style_text_color(s_playLabel, lv_color_hex(0xFFFFFF), 0);
     lv_obj_center(s_playLabel);
 
     s_stopBtn = lv_btn_create(parent);
-    lv_obj_set_size(s_stopBtn, 126, 54);
-    lv_obj_align(s_stopBtn, LV_ALIGN_CENTER, 70, 22);
-    lv_obj_set_style_radius(s_stopBtn, 27, 0);
-    lv_obj_set_style_bg_color(s_stopBtn, lv_color_hex(0x334155), 0);
+    lv_obj_set_size(s_stopBtn, 174, 84);
+    lv_obj_align(s_stopBtn, LV_ALIGN_CENTER, 92, 6);
+    lv_obj_set_style_radius(s_stopBtn, 42, 0);
+    lv_obj_set_style_bg_color(s_stopBtn, lv_color_hex(0x3A3D40), 0);
     lv_obj_set_style_bg_color(s_stopBtn, lv_color_hex(0xDC2626), LV_STATE_PRESSED);
+    lv_obj_set_style_border_width(s_stopBtn, 2, 0);
+    lv_obj_set_style_border_color(s_stopBtn, lv_color_hex(0x64748B), 0);
     lv_obj_set_style_shadow_width(s_stopBtn, 0, 0);
     lv_obj_add_flag(s_stopBtn, LV_OBJ_FLAG_SCROLL_CHAIN_HOR);
     lv_obj_add_event_cb(s_stopBtn, onStopResetEvent, LV_EVENT_ALL, nullptr);
 
     lv_obj_t *stopLbl = lv_label_create(s_stopBtn);
-    lv_label_set_text(stopLbl, LV_SYMBOL_STOP " RESET");
-    lv_obj_set_style_text_font(stopLbl, &lv_font_montserrat_16, 0);
+    lv_label_set_text(stopLbl, "STOP /\nRESET");
+    lv_obj_set_style_text_align(stopLbl, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_text_font(stopLbl, &lv_font_montserrat_20, 0);
+    lv_obj_set_style_text_color(stopLbl, lv_color_hex(0xFFFFFF), 0);
     lv_obj_center(stopLbl);
 
-    // Quick-increment circular buttons arranged along the lower curve
-    createQuickAddButton(parent, 1, "+1m", -86, 106);
-    createQuickAddButton(parent, 2, "+2m",   0, 118);
-    createQuickAddButton(parent, 5, "+5m",  86, 106);
+    // Three circular quick-add buttons
+    createQuickAddButton(parent, 1, "+1\nmin", -92, 108);
+    createQuickAddButton(parent, 2, "+2\nmin",   0, 108);
+    createQuickAddButton(parent, 5, "+5\nmin",  92, 108);
+
+    // Bottom swipe hint
+    s_hintLabel = lv_label_create(parent);
+    lv_label_set_text(s_hintLabel, "Swipe " LV_SYMBOL_LEFT);
+    lv_obj_set_style_text_font(s_hintLabel, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_color(s_hintLabel, lv_color_hex(0xCBD5E1), 0);
+    lv_obj_align(s_hintLabel, LV_ALIGN_BOTTOM_MID, 0, -14);
 
     lv_timer_create(timerTickCb, 100, nullptr);
+    refreshTimerUi(esp_timer_get_time());
+}
+
+void setRemainingSeconds(uint32_t seconds) {
+    s_running = false;
+    s_expired = false;
+    s_remainingMs = static_cast<uint64_t>(seconds) * 1000ULL;
+    if (s_remainingMs > MAX_TIMER_MS) {
+        s_remainingMs = MAX_TIMER_MS;
+    }
     refreshTimerUi(esp_timer_get_time());
 }
 
