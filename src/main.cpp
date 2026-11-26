@@ -3,6 +3,7 @@
 #include <lvgl.h>
 
 #include "board_pins.h"
+#include "ble/hid_keyboard.h"
 #include "drivers/display_spd2010.h"
 #include "drivers/tca9554.h"
 #include "drivers/touch_spd2010.h"
@@ -19,8 +20,13 @@ void onTestButtonClicked(lv_event_t *e) {
         lv_indev_get_point(indev, &pt);
     }
     Serial.printf("[TEST_BTN] Clicked at x=%d y=%d\n", static_cast<int>(pt.x), static_cast<int>(pt.y));
+    if (BleHidKeyboard::isConnected()) {
+        BleHidKeyboard::sendKey(KEY_RIGHT_ARROW);
+    }
     if (s_coordLabel) {
-        lv_label_set_text_fmt(s_coordLabel, "OK (%d, %d)", static_cast<int>(pt.x), static_cast<int>(pt.y));
+        lv_label_set_text_fmt(s_coordLabel, "OK (%d, %d)\n%s",
+                              static_cast<int>(pt.x), static_cast<int>(pt.y),
+                              BleHidKeyboard::isConnected() ? "BLE OK" : "BLE WAIT");
     }
 }
 
@@ -66,6 +72,7 @@ void setup() {
 
     TouchSpd2010::begin();
     TouchSpd2010::setSerialLogEnabled(true);
+    BleHidKeyboard::begin("Kairos-remote");
 
     lv_init();
     DisplaySpd2010::registerLvglDisplay();
