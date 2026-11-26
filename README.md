@@ -1,10 +1,11 @@
 # Kairos-remote
 
 [![CI](https://github.com/anyulled/kairos-remote/actions/workflows/ci.yml/badge.svg)](https://github.com/anyulled/kairos-remote/actions/workflows/ci.yml)
+[![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-Live%20Site%20%26%20Demo-0ea5e9)](https://anyulled.github.io/kairos-remote/)
 
 ![Kairos-remote](docs/assets/kairos-remote-hero.png)
 
-[English](#english) · [Español](#español)
+[🌐 Project Page & Online Demo](https://anyulled.github.io/kairos-remote/) · [🎯 reveal.js Demo](https://anyulled.github.io/kairos-remote/demo/) · [English](#english) · [Español](#español)
 
 ---
 

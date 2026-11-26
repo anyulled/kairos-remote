@@ -1,0 +1,502 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kairos-remote — BLE HID Touch Controller & Stage Timer</title>
+    <meta
+      name="description"
+      content="Open-source circular BLE HID presentation controller for reveal.js based on Waveshare ESP32-S3-Touch-LCD-1.46 with LVGL 8.4, haptic audio, and 3D-printable enclosure."
+    />
+    <style>
+      :root {
+        --bg: #0b0f17;
+        --bg-elev: #111827;
+        --card: #151e2e;
+        --border: #1e293b;
+        --text: #f8fafc;
+        --muted: #94a3b8;
+        --accent: #38bdf8;
+        --accent-strong: #0ea5e9;
+        --emerald: #34d399;
+      }
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+        background: radial-gradient(circle at top right, #0f172a 0%, var(--bg) 55%);
+        color: var(--text);
+        line-height: 1.6;
+      }
+      a { color: var(--accent); text-decoration: none; }
+      a:hover { text-decoration: underline; }
+      .container { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+
+      header {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        background: rgba(11, 15, 23, 0.85);
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid var(--border);
+      }
+      .nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        min-height: 64px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 700;
+        font-size: 1.1rem;
+        color: var(--text);
+      }
+      .brand-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 999px;
+        background: var(--accent);
+        box-shadow: 0 0 12px var(--accent);
+      }
+      .nav-links {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        flex-wrap: wrap;
+        font-size: 0.92rem;
+      }
+      .nav-links a { color: var(--muted); }
+      .nav-links a:hover { color: var(--text); text-decoration: none; }
+      .lang-switch {
+        display: inline-flex;
+        background: var(--bg-elev);
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 3px;
+      }
+      .lang-btn {
+        border: 0;
+        background: transparent;
+        color: var(--muted);
+        padding: 5px 12px;
+        border-radius: 999px;
+        font-size: 0.82rem;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .lang-btn.active {
+        background: var(--accent-strong);
+        color: #fff;
+      }
+
+      .hero {
+        padding: 56px 0 40px;
+        display: grid;
+        grid-template-columns: 1.05fr 0.95fr;
+        gap: 36px;
+        align-items: center;
+      }
+      .pill {
+        display: inline-block;
+        padding: 5px 12px;
+        border-radius: 999px;
+        background: rgba(56, 189, 248, 0.12);
+        border: 1px solid rgba(56, 189, 248, 0.35);
+        color: var(--accent);
+        font-size: 0.82rem;
+        font-weight: 600;
+        margin-bottom: 14px;
+      }
+      h1 {
+        margin: 0 0 14px;
+        font-size: clamp(2.1rem, 4vw, 3.1rem);
+        line-height: 1.12;
+        letter-spacing: -0.02em;
+      }
+      .lead {
+        margin: 0 0 26px;
+        color: var(--muted);
+        font-size: 1.08rem;
+      }
+      .cta-row {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 12px 20px;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 0.96rem;
+        border: 1px solid var(--border);
+        transition: transform 0.15s ease, border-color 0.15s ease;
+      }
+      .btn:hover { transform: translateY(-1px); text-decoration: none; }
+      .btn-primary {
+        background: var(--accent-strong);
+        border-color: var(--accent);
+        color: #fff;
+      }
+      .btn-secondary {
+        background: var(--bg-elev);
+        color: var(--text);
+      }
+      .hero-media {
+        border-radius: 18px;
+        overflow: hidden;
+        border: 1px solid var(--border);
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+        background: var(--bg-elev);
+      }
+      .hero-media img {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+
+      section { padding: 48px 0; border-top: 1px solid var(--border); }
+      h2 {
+        margin: 0 0 10px;
+        font-size: 1.75rem;
+        letter-spacing: -0.01em;
+      }
+      .section-sub {
+        margin: 0 0 28px;
+        color: var(--muted);
+      }
+
+      .screens-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 24px;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 22px;
+      }
+      .screen-img {
+        display: block;
+        width: 220px;
+        max-width: 100%;
+        height: auto;
+        margin: 0 auto 18px;
+      }
+      .card h3 { margin: 0 0 8px; font-size: 1.12rem; }
+      .card ul {
+        margin: 10px 0 0;
+        padding-left: 18px;
+        color: var(--muted);
+        font-size: 0.93rem;
+      }
+      .card li + li { margin-top: 5px; }
+
+      .features-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 20px;
+      }
+      .card p { margin: 0; color: var(--muted); font-size: 0.95rem; }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        background: var(--bg-elev);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        overflow: hidden;
+        font-size: 0.92rem;
+      }
+      th, td {
+        padding: 12px 14px;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+      }
+      th { background: #162033; color: var(--text); font-weight: 600; }
+      td { color: var(--muted); }
+      tr:last-child td { border-bottom: 0; }
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 0.88em;
+        background: rgba(148, 163, 184, 0.14);
+        color: #e2e8f0;
+        padding: 2px 6px;
+        border-radius: 5px;
+      }
+      pre {
+        margin: 0;
+        padding: 18px 20px;
+        border-radius: 12px;
+        background: #080c13;
+        border: 1px solid var(--border);
+        overflow-x: auto;
+        font-size: 0.88rem;
+        color: #e2e8f0;
+      }
+      pre code { background: transparent; padding: 0; }
+
+      footer {
+        border-top: 1px solid var(--border);
+        padding: 28px 0 40px;
+        color: var(--muted);
+        font-size: 0.9rem;
+        display: flex;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+
+      html[lang="es"] [data-lang="en"] { display: none !important; }
+      html[lang="en"] [data-lang="es"] { display: none !important; }
+
+      @media (max-width: 900px) {
+        .hero { grid-template-columns: 1fr; padding-top: 32px; }
+        .screens-grid { grid-template-columns: 1fr; }
+        .features-grid { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="container nav">
+        <div class="brand">
+          <span class="brand-dot" aria-hidden="true"></span>
+          <span>Kairos-remote</span>
+        </div>
+        <nav class="nav-links" aria-label="Navegación principal">
+          <a href="#screens" data-lang="es">Pantallas</a>
+          <a href="#screens" data-lang="en">Screens</a>
+          <a href="#hardware">Hardware</a>
+          <a href="#quickstart" data-lang="es">Inicio rápido</a>
+          <a href="#quickstart" data-lang="en">Quick Start</a>
+          <a href="./demo/" data-lang="es">Demo reveal.js</a>
+          <a href="./demo/" data-lang="en">reveal.js Demo</a>
+          <div class="lang-switch" role="group" aria-label="Idioma / Language">
+            <button type="button" class="lang-btn active" id="btn-es">ES</button>
+            <button type="button" class="lang-btn" id="btn-en">EN</button>
+          </div>
+        </nav>
+      </div>
+    </header>
+
+    <main class="container">
+      <div class="hero">
+        <div>
+          <span class="pill">ESP32-S3 · LVGL 8.4 · BLE 5.0 HID · reveal.js</span>
+          <h1 data-lang="es">Controlador táctil circular con temporizador de escenario</h1>
+          <h1 data-lang="en">Circular BLE HID touch presenter with built-in stage timer</h1>
+          <p class="lead" data-lang="es">
+            Sustituye los pasadores de dos botones por una pantalla IPS capacitiva de 1.46" basada en
+            <strong>Waveshare ESP32-S3-Touch-LCD-1.46</strong>. Se empareja como teclado Bluetooth estándar
+            sin drivers e integra navegación 2D para <code>reveal.js</code>, retroalimentación acústica y carcasa 3D.
+          </p>
+          <p class="lead" data-lang="en">
+            Replaces conventional two-button clickers with a 1.46" circular capacitive IPS touchscreen powered by
+            <strong>Waveshare ESP32-S3-Touch-LCD-1.46</strong>. Pairs as a standard driverless Bluetooth HID keyboard
+            with full 2D <code>reveal.js</code> navigation, acoustic haptic clicks, and a 3D-printable pebble shell.
+          </p>
+          <div class="cta-row">
+            <a class="btn btn-primary" href="./demo/" data-lang="es">Probar Demo reveal.js</a>
+            <a class="btn btn-primary" href="./demo/" data-lang="en">Launch reveal.js Demo</a>
+            <a class="btn btn-secondary" href="https://github.com/anyulled/kairos-remote" data-lang="es">Ver en GitHub</a>
+            <a class="btn btn-secondary" href="https://github.com/anyulled/kairos-remote" data-lang="en">View on GitHub</a>
+          </div>
+        </div>
+        <div class="hero-media">
+          <img src="./assets/kairos-remote-hero.png" alt="Kairos-remote hardware render" />
+        </div>
+      </div>
+
+      <section id="screens">
+        <h2 data-lang="es">Las 3 Vistas Táctiles (LVGL 8.4)</h2>
+        <h2 data-lang="en">3 Swipeable LVGL 8.4 Views</h2>
+        <p class="section-sub" data-lang="es">
+          Capturas reales renderizadas desde el firmware. Desliza horizontalmente para alternar entre vistas; la barra superior muestra batería, silenciado global y conexión BLE.
+        </p>
+        <p class="section-sub" data-lang="en">
+          Pixel-accurate captures rendered directly from the firmware LVGL 8.4 engine. Swipe horizontally between views; the top status pill tracks battery, mute state, and BLE status.
+        </p>
+
+        <div class="screens-grid">
+          <article class="card">
+            <img class="screen-img" src="./assets/screen1_nav.png" alt="Pantalla 1: Navegación principal" />
+            <h3 data-lang="es">1. Navegación Principal</h3>
+            <h3 data-lang="en">1. Radial Navigation</h3>
+            <ul data-lang="es">
+              <li><strong>4 arcos exteriores (90°)</strong>: <code>KEY_UP_ARROW</code>, <code>KEY_DOWN_ARROW</code>, <code>KEY_LEFT_ARROW</code>, <code>KEY_RIGHT_ARROW</code> con hitboxes polares.</li>
+              <li><strong>Centro (SPACE)</strong>: avance lineal de diapositivas y fragmentos.</li>
+            </ul>
+            <ul data-lang="en">
+              <li><strong>4 outer 90° arcs</strong>: <code>KEY_UP_ARROW</code>, <code>KEY_DOWN_ARROW</code>, <code>KEY_LEFT_ARROW</code>, <code>KEY_RIGHT_ARROW</code> with polar dead-bands.</li>
+              <li><strong>Center (SPACE)</strong>: linear slide & fragment advance.</li>
+            </ul>
+          </article>
+
+          <article class="card">
+            <img class="screen-img" src="./assets/screen2_stage.png" alt="Pantalla 2: Control de escenario" />
+            <h3 data-lang="es">2. Control de Escenario</h3>
+            <h3 data-lang="en">2. Stage Control</h3>
+            <ul data-lang="es">
+              <li><code>ESC</code>: Vista general (<em>Overview</em>).</li>
+              <li><code>b</code>: Pantalla negra (<em>Blackout</em>).</li>
+              <li><code>HOME</code>: Primera diapositiva.</li>
+              <li><code>f</code>: Pantalla completa + <code>ENTER</code> central.</li>
+            </ul>
+            <ul data-lang="en">
+              <li><code>ESC</code>: Overview mode.</li>
+              <li><code>b</code>: Blackout screen.</li>
+              <li><code>HOME</code>: Jump to first slide.</li>
+              <li><code>f</code>: Fullscreen + central <code>ENTER</code> confirm.</li>
+            </ul>
+          </article>
+
+          <article class="card">
+            <img class="screen-img" src="./assets/screen3_timer.png" alt="Pantalla 3: Cronómetro" />
+            <h3 data-lang="es">3. Cronómetro Local</h3>
+            <h3 data-lang="en">3. Stage Timer</h3>
+            <ul data-lang="es">
+              <li>Reloj hardware <code>esp_timer_get_time()</code> activo en segundo plano.</li>
+              <li><code>+1 / +2 / +5 min</code> en vivo, <code>PLAY / PAUSA</code> y <code>STOP / RESET</code> (mantener 1.5 s).</li>
+              <li>Aviso ámbar (&lt; 2 min) y rojo parpadeante + alarma a <code>00:00</code>.</li>
+            </ul>
+            <ul data-lang="en">
+              <li>Hardware <code>esp_timer_get_time()</code> countdown runs across all screens.</li>
+              <li>Live <code>+1 / +2 / +5 min</code> add, <code>PLAY / PAUSE</code>, 1.5 s hold-to-reset.</li>
+              <li>Amber (&lt; 2 min) and blinking red + double-pulse chime at <code>00:00</code>.</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section id="hardware">
+        <h2 data-lang="es">Arquitectura, Hardware y Carcasa 3D</h2>
+        <h2 data-lang="en">Hardware Architecture & 3D Enclosure</h2>
+        <p class="section-sub" data-lang="es">
+          Diseñado para la placa Waveshare ESP32-S3-Touch-LCD-1.46 (16 MB Flash, 8 MB OPI PSRAM) con celda LiPo 3.7 V (350–500 mAh).
+        </p>
+        <p class="section-sub" data-lang="en">
+          Targeted at the Waveshare ESP32-S3-Touch-LCD-1.46 board (16 MB Flash, 8 MB OPI PSRAM) with a 3.7 V 350–500 mAh LiPo cell.
+        </p>
+
+        <div class="features-grid" style="margin-bottom: 24px;">
+          <div class="card">
+            <h3 data-lang="es">Audio Háptico y Energía</h3>
+            <h3 data-lang="en">Haptic Audio & Power</h3>
+            <p data-lang="es">
+              DAC I2S <code>PCM5101</code> sintetizando un clic mecánico amortiguado de 18 ms sin bloquear LVGL.
+              Atenuación PWM al 15% tras 10 s sin toque y <em>Deep Sleep</em> tras 15 min sin BLE ni interacción (despertar por botón físico <code>PWR</code> en <code>GPIO 6</code>).
+            </p>
+            <p data-lang="en">
+              <code>PCM5101</code> I2S DAC renders an 18 ms damped mechanical click off the UI thread.
+              Backlight auto-dims to 15% PWM after 10 s idle and enters Deep Sleep after 15 min without BLE or touch (wake via physical <code>PWR</code> button on <code>GPIO 6</code>).
+            </p>
+          </div>
+          <div class="card">
+            <h3 data-lang="es">Carcasa Ergonómica (STL / STEP)</h3>
+            <h3 data-lang="en">3D-Printable Pebble Enclosure</h3>
+            <p data-lang="es">
+              Fuente paramétrica en <code>build123d</code> y OpenSCAD (<a href="https://github.com/anyulled/kairos-remote/tree/main/hardware/enclosure"><code>hardware/enclosure/</code></a>), lista para imprimir sin soportes con bahía aislada para LiPo, acceso USB-C, ranuras acústicas y ojal para cordón.
+            </p>
+            <p data-lang="en">
+              Parametric CAD in <code>build123d</code> &amp; OpenSCAD (<a href="https://github.com/anyulled/kairos-remote/tree/main/hardware/enclosure"><code>hardware/enclosure/</code></a>), support-free printing with an isolated LiPo bay, USB-C cutout, speaker slots, and lanyard loop.
+            </p>
+          </div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th data-lang="es">Subsistema</th>
+              <th data-lang="en">Subsystem</th>
+              <th>GPIO / I2C</th>
+              <th data-lang="es">Detalle</th>
+              <th data-lang="en">Details</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>SPD2010 QSPI LCD</td>
+              <td><code>PCLK 40 · D0..3 46,45,42,41 · CS 21 · BL 5</code></td>
+              <td data-lang="es">412×412 IPS RGB565, PWM 5 kHz</td>
+              <td data-lang="en">412×412 IPS RGB565, 5 kHz PWM</td>
+            </tr>
+            <tr>
+              <td>SPD2010 Touch &amp; TCA9554</td>
+              <td><code>SDA 11 · SCL 10 · INT 4 · 0x53 / 0x20</code></td>
+              <td data-lang="es">Reset LCD/Touch vía EXIO, antirrebote 40 ms</td>
+              <td data-lang="en">LCD/Touch reset via EXIO, 40 ms lift debounce</td>
+            </tr>
+            <tr>
+              <td data-lang="es">Audio I2S PCM5101</td>
+              <td data-lang="en">PCM5101 I2S Audio</td>
+              <td><code>BCLK 48 · WS 38 · DOUT 47</code></td>
+              <td data-lang="es">22.05 kHz estéreo DMA</td>
+              <td data-lang="en">22.05 kHz stereo DMA</td>
+            </tr>
+            <tr>
+              <td data-lang="es">Energía y ADC LiPo</td>
+              <td data-lang="en">Power &amp; LiPo ADC</td>
+              <td><code>HOLD 7 · PWR 6 · BOOT 0 · BAT 8</code></td>
+              <td data-lang="es">Divisor 3:1 (200 kΩ / 100 kΩ), <code>ext0</code> wakeup</td>
+              <td data-lang="en">3:1 divider (200 kΩ / 100 kΩ), <code>ext0</code> wakeup</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="quickstart">
+        <h2 data-lang="es">Compilación, Tests y Análisis Estático</h2>
+        <h2 data-lang="en">Build, Unit Tests & Static Analysis</h2>
+        <p class="section-sub" data-lang="es">
+          Validado en CI con 10 pruebas unitarias nativas, <code>cppcheck</code> y compilación estricta (<code>-Wall -Wextra -Wshadow -Werror</code>).
+        </p>
+        <p class="section-sub" data-lang="en">
+          Continuously verified with 10 host unit tests, <code>cppcheck</code> static analysis, and strict firmware builds (<code>-Wall -Wextra -Wshadow -Werror</code>).
+        </p>
+        <pre><code>git clone https://github.com/anyulled/kairos-remote.git
+cd kairos-remote
+
+pio test -e native
+pio check -e waveshare_esp32s3_146 --skip-packages --fail-on-defect=low --fail-on-defect=medium --fail-on-defect=high
+pio run -e waveshare_esp32s3_146 -t upload</code></pre>
+      </section>
+    </main>
+
+    <footer class="container">
+      <span>Kairos-remote · <a href="https://github.com/anyulled/kairos-remote">github.com/anyulled/kairos-remote</a></span>
+      <span data-lang="es">Demo online disponible en <a href="./demo/">/demo/</a></span>
+      <span data-lang="en">Live key-validator deck at <a href="./demo/">/demo/</a></span>
+    </footer>
+
+    <script>
+      (function () {
+        const html = document.documentElement;
+        const btnEs = document.getElementById("btn-es");
+        const btnEn = document.getElementById("btn-en");
+
+        function setLang(lang) {
+          const next = lang === "en" ? "en" : "es";
+          html.setAttribute("lang", next);
+          btnEs.classList.toggle("active", next === "es");
+          btnEn.classList.toggle("active", next === "en");
+        }
+
+        btnEs.addEventListener("click", () => setLang("es"));
+        btnEn.addEventListener("click", () => setLang("en"));
+
+        const params = new URLSearchParams(window.location.search);
+        const initial = params.get("lang") || (navigator.language && navigator.language.startsWith("en") ? "en" : "es");
+        setLang(initial);
+      })();
+    </script>
+  </body>
+</html>

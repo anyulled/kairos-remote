@@ -26,10 +26,19 @@
       .kairos-hud-title {
         display: flex;
         justify-content: space-between;
+        align-items: center;
+        gap: 8px;
         font-weight: 700;
         margin-bottom: 8px;
         color: #38bdf8;
       }
+      .kairos-back {
+        font-size: 11px;
+        color: #94a3b8;
+        text-decoration: none;
+        font-weight: 500;
+      }
+      .kairos-back:hover { color: #f8fafc; text-decoration: underline; }
       .kairos-keys {
         display: grid;
         grid-template-columns: repeat(5, 1fr);
@@ -113,6 +122,7 @@
     <aside class="kairos-hud" aria-label="Validador de teclas Kairos-remote">
       <div class="kairos-hud-title">
         <span>HUD Kairos-remote</span>
+        <a class="kairos-back" href="../">← Docs</a>
         <span id="kairos-count">0 / 10</span>
       </div>
       <div class="kairos-keys" id="kairos-keys"></div>
