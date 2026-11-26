@@ -8,6 +8,7 @@
 #include "drivers/display_spd2010.h"
 #include "drivers/tca9554.h"
 #include "drivers/touch_spd2010.h"
+#include "ui/screen_nav.h"
 #include "ui/ui_manager.h"
 
 namespace {
@@ -51,7 +52,7 @@ void setup() {
     TouchSpd2010::registerLvglTouch(28, 14);
 
     UiManager::begin();
-    addPlaceholderLabel(UiManager::getTile(0), "1. Navegacion");
+    ScreenNav::create(UiManager::getTile(0));
     addPlaceholderLabel(UiManager::getTile(1), "2. Escenario");
     addPlaceholderLabel(UiManager::getTile(2), "3. Cronometro");
 
