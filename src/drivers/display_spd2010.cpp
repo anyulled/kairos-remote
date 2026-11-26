@@ -308,19 +308,13 @@ esp_err_t sendCmd(uint8_t cmd, const uint8_t *params, size_t len) {
     return spi_device_polling_transmit(s_spi, &ext.base);
 }
 
-esp_err_t sendColorChunk(const uint8_t *data, size_t bytes, bool continuation) {
+esp_err_t sendColorStrip(const uint8_t *data, size_t bytes) {
     spi_transaction_ext_t ext = {};
     ext.base.flags = SPI_TRANS_VARIABLE_CMD | SPI_TRANS_VARIABLE_ADDR | SPI_TRANS_MODE_QIO;
-    if (continuation) {
-        // Subsequent chunks stream directly without re-issuing opcode/address
-        ext.command_bits = 0;
-        ext.address_bits = 0;
-    } else {
-        ext.command_bits = 8;
-        ext.address_bits = 24;
-        ext.base.cmd = QSPI_OPCODE_WRITE_COLOR;
-        ext.base.addr = static_cast<uint32_t>(CMD_RAMWR) << 8;
-    }
+    ext.command_bits = 8;
+    ext.address_bits = 24;
+    ext.base.cmd = QSPI_OPCODE_WRITE_COLOR;
+    ext.base.addr = static_cast<uint32_t>(CMD_RAMWR) << 8;
     ext.base.length = bytes * 8;
     ext.base.tx_buffer = data;
     return spi_device_polling_transmit(s_spi, &ext.base);
@@ -408,28 +402,36 @@ void drawBitmap(int16_t x1, int16_t y1, int16_t x2, int16_t y2, const uint16_t *
         static_cast<uint8_t>((x2 >> 8) & 0xFF),
         static_cast<uint8_t>(x2 & 0xFF),
     };
-    const uint8_t rowData[4] = {
-        static_cast<uint8_t>((y1 >> 8) & 0xFF),
-        static_cast<uint8_t>(y1 & 0xFF),
-        static_cast<uint8_t>((y2 >> 8) & 0xFF),
-        static_cast<uint8_t>(y2 & 0xFF),
-    };
-
     sendCmd(CMD_CASET, colData, sizeof(colData));
-    sendCmd(CMD_RASET, rowData, sizeof(rowData));
 
     const size_t width = static_cast<size_t>(x2 - x1 + 1);
     const size_t height = static_cast<size_t>(y2 - y1 + 1);
-    const size_t totalBytes = width * height * sizeof(uint16_t);
-    const uint8_t *src = reinterpret_cast<const uint8_t *>(pixels);
+    const size_t rowBytes = width * sizeof(uint16_t);
+    size_t maxStripRows = DMA_CHUNK_BYTES / rowBytes;
+    if (maxStripRows == 0) {
+        maxStripRows = 1;
+    }
 
-    // Stage PSRAM pixels through internal DMA-capable SRAM in bounded chunks.
-    size_t offset = 0;
-    while (offset < totalBytes) {
-        const size_t chunk = (totalBytes - offset > DMA_CHUNK_BYTES) ? DMA_CHUNK_BYTES : (totalBytes - offset);
-        memcpy(s_dmaBuf, src + offset, chunk);
-        sendColorChunk(s_dmaBuf, chunk, offset > 0);
-        offset += chunk;
+    const uint8_t *src = reinterpret_cast<const uint8_t *>(pixels);
+    size_t rowOffset = 0;
+    while (rowOffset < height) {
+        const size_t remRows = height - rowOffset;
+        const size_t stripRows = (remRows < maxStripRows) ? remRows : maxStripRows;
+        const int16_t stripY1 = static_cast<int16_t>(y1 + static_cast<int16_t>(rowOffset));
+        const int16_t stripY2 = static_cast<int16_t>(stripY1 + static_cast<int16_t>(stripRows) - 1);
+
+        const uint8_t rowData[4] = {
+            static_cast<uint8_t>((stripY1 >> 8) & 0xFF),
+            static_cast<uint8_t>(stripY1 & 0xFF),
+            static_cast<uint8_t>((stripY2 >> 8) & 0xFF),
+            static_cast<uint8_t>(stripY2 & 0xFF),
+        };
+        sendCmd(CMD_RASET, rowData, sizeof(rowData));
+
+        const size_t stripBytes = stripRows * rowBytes;
+        memcpy(s_dmaBuf, src + (rowOffset * rowBytes), stripBytes);
+        sendColorStrip(s_dmaBuf, stripBytes);
+        rowOffset += stripRows;
     }
 }
 
