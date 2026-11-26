@@ -2,54 +2,24 @@
 #include <Wire.h>
 #include <lvgl.h>
 
-#include "board_pins.h"
 #include "audio/haptic_click.h"
 #include "ble/hid_keyboard.h"
+#include "board_pins.h"
 #include "drivers/display_spd2010.h"
 #include "drivers/tca9554.h"
 #include "drivers/touch_spd2010.h"
+#include "ui/ui_manager.h"
 
 namespace {
 
-lv_obj_t *s_coordLabel = nullptr;
+bool s_lastBleConnected = false;
 
-void onTestButtonClicked(lv_event_t *e) {
-    (void)e;
-    lv_point_t pt = {};
-    lv_indev_t *indev = lv_indev_get_act();
-    if (indev) {
-        lv_indev_get_point(indev, &pt);
-    }
-    Serial.printf("[TEST_BTN] Clicked at x=%d y=%d\n", static_cast<int>(pt.x), static_cast<int>(pt.y));
-    HapticAudio::playClick();
-    if (BleHidKeyboard::isConnected()) {
-        BleHidKeyboard::sendKey(KEY_RIGHT_ARROW);
-    }
-    if (s_coordLabel) {
-        lv_label_set_text_fmt(s_coordLabel, "OK (%d, %d)\n%s",
-                              static_cast<int>(pt.x), static_cast<int>(pt.y),
-                              BleHidKeyboard::isConnected() ? "BLE OK" : "BLE WAIT");
-    }
-}
-
-void createHardwareTestUi() {
-    lv_obj_t *scr = lv_scr_act();
-    lv_obj_set_style_bg_color(scr, lv_color_hex(0x0B0F17), 0);
-    lv_obj_set_style_bg_opa(scr, LV_OPA_COVER, 0);
-
-    lv_obj_t *btn = lv_btn_create(scr);
-    lv_obj_set_size(btn, 180, 180);
-    lv_obj_center(btn);
-    lv_obj_set_style_radius(btn, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_bg_color(btn, lv_color_hex(0x0EA5E9), 0);
-    lv_obj_set_style_bg_color(btn, lv_color_hex(0x0284C7), LV_STATE_PRESSED);
-    lv_obj_add_event_cb(btn, onTestButtonClicked, LV_EVENT_CLICKED, nullptr);
-
-    s_coordLabel = lv_label_create(btn);
-    lv_label_set_text(s_coordLabel, "KAIROS\nTOUCH");
-    lv_obj_set_style_text_align(s_coordLabel, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_set_style_text_font(s_coordLabel, &lv_font_montserrat_24, 0);
-    lv_obj_center(s_coordLabel);
+void addPlaceholderLabel(lv_obj_t *parent, const char *text) {
+    lv_obj_t *lbl = lv_label_create(parent);
+    lv_label_set_text(lbl, text);
+    lv_obj_set_style_text_color(lbl, lv_color_hex(0x94A3B8), 0);
+    lv_obj_set_style_text_font(lbl, &lv_font_montserrat_24, 0);
+    lv_obj_center(lbl);
 }
 
 } // namespace
@@ -61,7 +31,7 @@ void setup() {
 
     Serial.begin(115200);
     delay(200);
-    Serial.println("[KAIROS] Booting Issue #1 bring-up...");
+    Serial.println("[KAIROS] Booting Kairos-remote...");
 
     Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL, I2C_FREQ_HZ);
     if (!Tca9554::begin()) {
@@ -73,19 +43,29 @@ void setup() {
     }
 
     TouchSpd2010::begin();
-    TouchSpd2010::setSerialLogEnabled(true);
     HapticAudio::begin();
     BleHidKeyboard::begin("Kairos-remote");
 
     lv_init();
     DisplaySpd2010::registerLvglDisplay();
-    TouchSpd2010::registerLvglTouch();
+    TouchSpd2010::registerLvglTouch(28, 14);
 
-    createHardwareTestUi();
-    Serial.println("[KAIROS] LVGL ready");
+    UiManager::begin();
+    addPlaceholderLabel(UiManager::getTile(0), "1. Navegacion");
+    addPlaceholderLabel(UiManager::getTile(1), "2. Escenario");
+    addPlaceholderLabel(UiManager::getTile(2), "3. Cronometro");
+
+    s_lastBleConnected = BleHidKeyboard::isConnected();
+    UiManager::updateBleStatus(s_lastBleConnected);
+    Serial.println("[KAIROS] UI Tileview ready");
 }
 
 void loop() {
+    const bool bleNow = BleHidKeyboard::isConnected();
+    if (bleNow != s_lastBleConnected) {
+        s_lastBleConnected = bleNow;
+        UiManager::updateBleStatus(bleNow);
+    }
     lv_timer_handler();
     delay(5);
 }
