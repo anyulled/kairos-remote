@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kairos-remote — Demo de Validación reveal.js</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reset.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/night.css" />
+    <style>
+      .kairos-hud {
+        position: fixed;
+        left: 16px;
+        bottom: 16px;
+        z-index: 9999;
+        background: rgba(15, 23, 42, 0.9);
+        border: 1px solid #334155;
+        border-radius: 12px;
+        padding: 12px 14px;
+        font-family: system-ui, -apple-system, sans-serif;
+        font-size: 12px;
+        color: #e2e8f0;
+        backdrop-filter: blur(8px);
+        max-width: 340px;
+      }
+      .kairos-hud-title {
+        display: flex;
+        justify-content: space-between;
+        font-weight: 700;
+        margin-bottom: 8px;
+        color: #38bdf8;
+      }
+      .kairos-keys {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 6px;
+      }
+      .kairos-key {
+        text-align: center;
+        padding: 4px 2px;
+        border-radius: 6px;
+        background: #1e293b;
+        border: 1px solid #475569;
+        color: #94a3b8;
+        font-weight: 600;
+        transition: all 0.15s ease;
+      }
+      .kairos-key.seen {
+        background: #065f46;
+        border-color: #10b981;
+        color: #ecfdf5;
+      }
+      .kairos-key.flash {
+        transform: scale(1.08);
+        box-shadow: 0 0 10px #38bdf8;
+      }
+      .badge {
+        display: inline-block;
+        padding: 0.2em 0.6em;
+        border-radius: 0.4em;
+        background: #0ea5e9;
+        color: #fff;
+        font-size: 0.7em;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="reveal">
+      <div class="slides">
+        <section>
+          <h1>Kairos-remote</h1>
+          <p>Presentación de prueba 2D para validar todos los controles BLE HID.</p>
+          <p><span class="badge">Pantalla 1</span> Pulsa <strong>SPACE</strong> o <strong>Derecha</strong> para avanzar.</p>
+        </section>
+
+        <section>
+          <section>
+            <h2>Columna 2 · Nivel Superior (2.1)</h2>
+            <p>Pulsa el arco <strong>Abajo</strong> para descender por esta columna vertical.</p>
+          </section>
+          <section>
+            <h2>Columna 2 · Nivel Medio (2.2)</h2>
+            <p>Usa <strong>Arriba</strong> y <strong>Abajo</strong> para probar la navegación vertical en reveal.js.</p>
+          </section>
+          <section>
+            <h2>Columna 2 · Nivel Inferior (2.3)</h2>
+            <p>Pulsa <strong>Derecha</strong> o <strong>SPACE</strong> para pasar a la Pantalla 2 de atajos.</p>
+          </section>
+        </section>
+
+        <section>
+          <h2>Control de Escenario (Pantalla 2)</h2>
+          <ul>
+            <li><code>ESC</code> — Vista general (Overview) + <code>ENTER</code> para confirmar</li>
+            <li><code>b</code> — Pantalla negra (Blackout)</li>
+            <li><code>HOME</code> — Volver a la primera diapositiva</li>
+            <li><code>f</code> — Pantalla completa (Fullscreen)</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Cronómetro de Escenario (Pantalla 3)</h2>
+          <p>Desliza hasta la tercera vista en el mando y prueba:</p>
+          <ul>
+            <li>Botones <code>+1m</code>, <code>+2m</code>, <code>+5m</code> en pausa y en marcha</li>
+            <li><code>PLAY / PAUSA</code> y mantenimiento de <code>1.5 s</code> en <code>RESET</code></li>
+            <li>Alarma sonora de doble pulso al llegar a <code>00:00</code></li>
+          </ul>
+        </section>
+      </div>
+    </div>
+
+    <aside class="kairos-hud" aria-label="Validador de teclas Kairos-remote">
+      <div class="kairos-hud-title">
+        <span>HUD Kairos-remote</span>
+        <span id="kairos-count">0 / 10</span>
+      </div>
+      <div class="kairos-keys" id="kairos-keys"></div>
+    </aside>
+
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
+    <script>
+      Reveal.initialize({
+        hash: true,
+        keyboard: true,
+        overview: true,
+        controls: true,
+        progress: true
+      });
+
+      const trackedKeys = [
+        { match: (e) => e.key === "ArrowUp",    label: "UP" },
+        { match: (e) => e.key === "ArrowDown",  label: "DOWN" },
+        { match: (e) => e.key === "ArrowLeft",  label: "LEFT" },
+        { match: (e) => e.key === "ArrowRight", label: "RIGHT" },
+        { match: (e) => e.code === "Space",     label: "SPACE" },
+        { match: (e) => e.key === "Escape",     label: "ESC" },
+        { match: (e) => e.key.toLowerCase() === "b", label: "B" },
+        { match: (e) => e.key === "Home",       label: "HOME" },
+        { match: (e) => e.key.toLowerCase() === "f", label: "F" },
+        { match: (e) => e.key === "Enter",      label: "ENTER" }
+      ];
+
+      const grid = document.getElementById("kairos-keys");
+      const countEl = document.getElementById("kairos-count");
+      const seen = new Set();
+
+      const cells = trackedKeys.map((spec, idx) => {
+        const div = document.createElement("div");
+        div.className = "kairos-key";
+        div.textContent = spec.label;
+        div.dataset.idx = String(idx);
+        grid.appendChild(div);
+        return div;
+      });
+
+      window.addEventListener("keydown", (e) => {
+        trackedKeys.forEach((spec, idx) => {
+          if (spec.match(e)) {
+            seen.add(idx);
+            const cell = cells[idx];
+            cell.classList.add("seen", "flash");
+            setTimeout(() => cell.classList.remove("flash"), 220);
+            countEl.textContent = `${seen.size} / ${trackedKeys.length}`;
+          }
+        });
+      }, true);
+    </script>
+  </body>
+</html>
