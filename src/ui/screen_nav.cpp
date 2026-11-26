@@ -22,18 +22,17 @@ struct ArcSpec {
     int16_t txtOffX;
     int16_t txtOffY;
     int16_t txtAngleDeciDeg;
-    uint8_t keycode;
 };
 
 constexpr ArcSpec kArcs[] = {
     {NavZone::ARC_UP,    228, 312, 0x17385B, 0x2563EB, 0x3B82F6,
-     LV_SYMBOL_UP, "UP",       0, -148,    0, -120,    0, KEY_UP_ARROW},
+     LV_SYMBOL_UP, "UP",       0, -148,    0, -120,    0},
     {NavZone::ARC_DOWN,   48, 132, 0x152D46, 0x0D9488, 0x2DD4BF,
-     LV_SYMBOL_DOWN, "DOWN",   0,  146,    0,  118,    0, KEY_DOWN_ARROW},
+     LV_SYMBOL_DOWN, "DOWN",   0,  146,    0,  118,    0},
     {NavZone::ARC_LEFT,  138, 222, 0x17385B, 0x2563EB, 0x3B82F6,
-     LV_SYMBOL_LEFT, "LEFT", -142, -14, -142,   12,    0, KEY_LEFT_ARROW},
+     LV_SYMBOL_LEFT, "LEFT", -142, -14, -142,   12,    0},
     {NavZone::ARC_RIGHT, 318,  42, 0x123E3B, 0x059669, 0x34D399,
-     LV_SYMBOL_RIGHT, "RIGHT", 142, -14,  142,  12,    0, KEY_RIGHT_ARROW},
+     LV_SYMBOL_RIGHT, "RIGHT", 142, -14,  142,  12,    0},
 };
 
 lv_obj_t *s_arcObjs[4] = {nullptr, nullptr, nullptr, nullptr};
@@ -62,21 +61,19 @@ void triggerZoneAction(NavZone zone) {
         return;
     }
     HapticAudio::playClick();
-    if (zone == NavZone::CENTER_SPACE) {
-        BleHidKeyboard::sendKey(KEY_SPACE);
-        return;
-    }
-    for (const auto &spec : kArcs) {
-        if (spec.zone == zone) {
-            BleHidKeyboard::sendKey(spec.keycode);
-            return;
-        }
+    switch (zone) {
+        case NavZone::CENTER_SPACE: BleHidKeyboard::sendKey(KEY_SPACE); break;
+        case NavZone::ARC_UP:       BleHidKeyboard::sendKey(KEY_UP_ARROW); break;
+        case NavZone::ARC_DOWN:     BleHidKeyboard::sendKey(KEY_DOWN_ARROW); break;
+        case NavZone::ARC_LEFT:     BleHidKeyboard::sendKey(KEY_LEFT_ARROW); break;
+        case NavZone::ARC_RIGHT:    BleHidKeyboard::sendKey(KEY_RIGHT_ARROW); break;
+        default:                    break;
     }
 }
 
 void onTileTouchEvent(lv_event_t *e) {
     const lv_event_code_t code = lv_event_get_code(e);
-    lv_indev_t *indev = lv_indev_get_act();
+    const lv_indev_t *indev = lv_indev_get_act();
     if (!indev) {
         return;
     }

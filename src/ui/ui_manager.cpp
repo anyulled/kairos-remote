@@ -28,7 +28,7 @@ void styleTile(lv_obj_t *tile) {
 
 void onTileChanged(lv_event_t *e) {
     lv_obj_t *tv = lv_event_get_target(e);
-    lv_obj_t *act = lv_tileview_get_tile_act(tv);
+    const lv_obj_t *act = lv_tileview_get_tile_act(tv);
     for (uint8_t i = 0; i < TILE_COUNT; ++i) {
         if (s_tiles[i] == act) {
             s_activeTile = i;

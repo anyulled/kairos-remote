@@ -1,5 +1,7 @@
 # Kairos-remote
 
+[![CI](https://github.com/anyulled/kairos-remote/actions/workflows/ci.yml/badge.svg)](https://github.com/anyulled/kairos-remote/actions/workflows/ci.yml)
+
 ![Kairos-remote](docs/assets/kairos-remote-hero.png)
 
 [English](#english) · [Español](#español)
@@ -28,10 +30,13 @@ Instead of a conventional two-button clicker, Kairos-remote pairs as a standard 
 ### Quick Start
 
 ```bash
-# Run host unit tests (radial hitboxes, LiPo curve, timer formatting, HID keymap)
+# Run host unit tests (radial hitboxes, LiPo curve, timer engine, power policy, HID keymap)
 pio test -e native
 
-# Build ESP32-S3 firmware
+# Run static analysis (cppcheck)
+pio check -e waveshare_esp32s3_146 --skip-packages --fail-on-defect=low --fail-on-defect=medium --fail-on-defect=high
+
+# Build ESP32-S3 firmware (-Wall -Wextra -Wshadow -Werror on src/)
 pio run -e waveshare_esp32s3_146
 
 # Flash via USB-C and open serial monitor
@@ -150,13 +155,16 @@ kairos-remote/
 # 1. Ejecutar pruebas unitarias de lógica pura en el ordenador
 pio test -e native
 
-# 2. Compilar el firmware para Waveshare ESP32-S3-Touch-LCD-1.46
+# 2. Ejecutar análisis estático (cppcheck)
+pio check -e waveshare_esp32s3_146 --skip-packages --fail-on-defect=low --fail-on-defect=medium --fail-on-defect=high
+
+# 3. Compilar el firmware para Waveshare ESP32-S3-Touch-LCD-1.46
 pio run -e waveshare_esp32s3_146
 
-# 3. Flashear por USB-C (si no entra automático, mantén BOOT al conectar/pulsar RESET)
+# 4. Flashear por USB-C (si no entra automático, mantén BOOT al conectar/pulsar RESET)
 pio run -e waveshare_esp32s3_146 -t upload
 
-# 4. Abrir monitor serie (115200 baudios)
+# 5. Abrir monitor serie (115200 baudios)
 pio device monitor -b 115200
 ```
 

@@ -123,27 +123,25 @@ bool begin() {
     synthesizeClick();
     synthesizeAlarm();
 
-    const i2s_config_t i2sCfg = {
-        .mode = static_cast<i2s_mode_t>(I2S_MODE_MASTER | I2S_MODE_TX),
-        .sample_rate = SAMPLE_RATE_HZ,
-        .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
-        .channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT,
-        .communication_format = I2S_COMM_FORMAT_STAND_I2S,
-        .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,
-        .dma_buf_count = 4,
-        .dma_buf_len = 256,
-        .use_apll = false,
-        .tx_desc_auto_clear = true,
-        .fixed_mclk = 0,
-    };
+    i2s_config_t i2sCfg = {};
+    i2sCfg.mode = static_cast<i2s_mode_t>(I2S_MODE_MASTER | I2S_MODE_TX);
+    i2sCfg.sample_rate = SAMPLE_RATE_HZ;
+    i2sCfg.bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT;
+    i2sCfg.channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT;
+    i2sCfg.communication_format = I2S_COMM_FORMAT_STAND_I2S;
+    i2sCfg.intr_alloc_flags = ESP_INTR_FLAG_LEVEL1;
+    i2sCfg.dma_buf_count = 4;
+    i2sCfg.dma_buf_len = 256;
+    i2sCfg.use_apll = false;
+    i2sCfg.tx_desc_auto_clear = true;
+    i2sCfg.fixed_mclk = 0;
 
-    const i2s_pin_config_t pinCfg = {
-        .mck_io_num = I2S_PIN_NO_CHANGE,
-        .bck_io_num = PIN_SPK_BCLK,
-        .ws_io_num = PIN_SPK_WS,
-        .data_out_num = PIN_SPK_DOUT,
-        .data_in_num = I2S_PIN_NO_CHANGE,
-    };
+    i2s_pin_config_t pinCfg = {};
+    pinCfg.mck_io_num = I2S_PIN_NO_CHANGE;
+    pinCfg.bck_io_num = PIN_SPK_BCLK;
+    pinCfg.ws_io_num = PIN_SPK_WS;
+    pinCfg.data_out_num = PIN_SPK_DOUT;
+    pinCfg.data_in_num = I2S_PIN_NO_CHANGE;
 
     if (i2s_driver_install(SPK_I2S_PORT, &i2sCfg, 0, nullptr) != ESP_OK) {
         return false;

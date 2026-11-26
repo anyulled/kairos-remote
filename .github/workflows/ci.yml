@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test-and-static-analysis:
+    name: Unit Tests & Static Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.platformio
+            .pio
+          key: ${{ runner.os }}-pio-${{ hashFiles('platformio.ini') }}
+
+      - name: Install PlatformIO
+        run: pip install --upgrade platformio
+
+      - name: Run native unit tests
+        run: pio test -e native
+
+      - name: Install ESP32-S3 dependencies for cppcheck
+        run: pio pkg install -e waveshare_esp32s3_146
+
+      - name: Run cppcheck static analysis
+        run: pio check -e waveshare_esp32s3_146 --skip-packages --fail-on-defect=low --fail-on-defect=medium --fail-on-defect=high
+
+  build-firmware:
+    name: Build ESP32-S3 Firmware
+    runs-on: ubuntu-latest
+    needs: test-and-static-analysis
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.platformio
+            .pio
+          key: ${{ runner.os }}-pio-${{ hashFiles('platformio.ini') }}
+
+      - name: Install PlatformIO
+        run: pip install --upgrade platformio
+
+      - name: Compile firmware (waveshare_esp32s3_146)
+        run: pio run -e waveshare_esp32s3_146
+
+      - name: Upload firmware artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kairos-remote-firmware
+          path: .pio/build/waveshare_esp32s3_146/firmware.bin

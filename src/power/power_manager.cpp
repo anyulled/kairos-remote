@@ -9,21 +9,13 @@
 #include "ble/hid_keyboard.h"
 #include "board_pins.h"
 #include "drivers/display_spd2010.h"
-#include "ui/nav_math.h"
+#include "power/power_state.h"
 #include "ui/ui_manager.h"
 
 namespace {
 
-constexpr int64_t BAT_SAMPLE_INTERVAL_US = 5000000LL; // 5 s
-constexpr int64_t DIM_TIMEOUT_US = static_cast<int64_t>(DIM_TIMEOUT_MS) * 1000LL;
-constexpr int64_t SLEEP_TIMEOUT_US = static_cast<int64_t>(SLEEP_TIMEOUT_MS) * 1000LL;
 constexpr int ADC_SAMPLES = 16;
-
-float s_filteredMv = 4000.0f;
-uint8_t s_batteryPct = 100;
-int64_t s_lastActivityUs = 0;
-int64_t s_lastBatReadUs = 0;
-bool s_dimmed = false;
+Kairos::PowerPolicy s_policy;
 
 float readRawBatteryMv() {
     uint32_t acc = 0;
@@ -34,12 +26,10 @@ float readRawBatteryMv() {
     return avgAdcMv * BAT_ADC_DIVIDER;
 }
 
-void publishBattery(float mv) {
-    const uint16_t clampedMv = static_cast<uint16_t>(mv < 0.0f ? 0.0f : mv);
-    s_batteryPct = KairosMath::voltageMvToPercent(clampedMv);
-    const bool charging = (clampedMv >= 4210U);
-    UiManager::updateBattery(s_batteryPct, charging);
-    BleHidKeyboard::setBatteryLevel(s_batteryPct);
+void publishBattery() {
+    const uint8_t pct = s_policy.batteryPercent();
+    UiManager::updateBattery(pct, s_policy.isProbableCharging());
+    BleHidKeyboard::setBatteryLevel(pct);
 }
 
 } // namespace
@@ -54,58 +44,46 @@ void begin() {
     analogReadResolution(12);
     analogSetPinAttenuation(PIN_BAT_ADC, ADC_11db);
 
-    s_filteredMv = readRawBatteryMv();
-    publishBattery(s_filteredMv);
-
-    const int64_t nowUs = esp_timer_get_time();
-    s_lastActivityUs = nowUs;
-    s_lastBatReadUs = nowUs;
-    s_dimmed = false;
+    s_policy.reset(esp_timer_get_time(), readRawBatteryMv());
+    publishBattery();
 }
 
 void notifyTouchActivity() {
-    s_lastActivityUs = esp_timer_get_time();
-    if (s_dimmed) {
+    if (s_policy.notifyTouch(esp_timer_get_time())) {
         DisplaySpd2010::setBrightness(FULL_BRIGHTNESS_PCT);
-        s_dimmed = false;
     }
 }
 
 void update(bool bleConnected) {
-    const int64_t nowUs = esp_timer_get_time();
+    const Kairos::PowerStepResult step = s_policy.evaluate(esp_timer_get_time(), bleConnected);
 
-    if ((nowUs - s_lastBatReadUs) >= BAT_SAMPLE_INTERVAL_US) {
-        s_lastBatReadUs = nowUs;
-        const float sampleMv = readRawBatteryMv();
-        s_filteredMv = (0.80f * s_filteredMv) + (0.20f * sampleMv);
-        publishBattery(s_filteredMv);
+    if (step.batterySampleDue) {
+        s_policy.recordBatterySample(readRawBatteryMv());
+        publishBattery();
     }
 
-    const int64_t idleUs = nowUs - s_lastActivityUs;
-    if (!s_dimmed && idleUs >= DIM_TIMEOUT_US) {
-        DisplaySpd2010::setBrightness(DIM_BRIGHTNESS_PCT);
-        s_dimmed = true;
+    if (step.brightnessChanged) {
+        DisplaySpd2010::setBrightness(step.targetBrightnessPct);
     }
 
-    if (!bleConnected && idleUs >= SLEEP_TIMEOUT_US) {
+    if (step.enterDeepSleep) {
         Serial.println("[POWER] Idle timeout reached without BLE; entering Deep Sleep");
         enterDeepSleep();
     }
 }
 
 uint8_t getBatteryPercent() {
-    return s_batteryPct;
+    return s_policy.batteryPercent();
 }
 
 uint16_t getBatteryMillivolts() {
-    return static_cast<uint16_t>(s_filteredMv);
+    return s_policy.batteryMillivolts();
 }
 
 [[noreturn]] void enterDeepSleep() {
     DisplaySpd2010::enterSleep();
     BleHidKeyboard::end();
 
-    // Keep battery power latch enabled across Deep Sleep so PWR button can wake the SoC.
     gpio_hold_en(static_cast<gpio_num_t>(PIN_POWER_HOLD));
     gpio_deep_sleep_hold_en();
 

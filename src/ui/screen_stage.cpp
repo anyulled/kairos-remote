@@ -24,18 +24,17 @@ struct QuadrantSpec {
     uint32_t bgIdleHex;
     uint32_t bgPressedHex;
     bool showBlackSquare;
-    bool showHomeIcon;
 };
 
 constexpr QuadrantSpec kQuadrants[] = {
     {StageAction::ESC_OVERVIEW, "ESC", "(OVERVIEW)",
-     LV_ALIGN_TOP_LEFT, 16, 18, 0x1C3F60, 0x2563EB, false, false},
+     LV_ALIGN_TOP_LEFT, 16, 18, 0x1C3F60, 0x2563EB, false},
     {StageAction::BLACK_SCREEN, "B", "(NEGRO)",
-     LV_ALIGN_TOP_RIGHT, -16, 18, 0x000000, 0x1E293B, true, false},
+     LV_ALIGN_TOP_RIGHT, -16, 18, 0x000000, 0x1E293B, true},
     {StageAction::HOME_START, "HOME", "(INICIO " LV_SYMBOL_HOME ")",
-     LV_ALIGN_BOTTOM_LEFT, 16, -18, 0x2D572C, 0x16A34A, false, true},
+     LV_ALIGN_BOTTOM_LEFT, 16, -18, 0x2D572C, 0x16A34A, false},
     {StageAction::FULLSCREEN, "F", "(PANTALLA\nCOMPLETA)",
-     LV_ALIGN_BOTTOM_RIGHT, -16, -14, 0x16535E, 0x0891B2, false, false},
+     LV_ALIGN_BOTTOM_RIGHT, -16, -14, 0x16535E, 0x0891B2, false},
 };
 
 void dispatchStageAction(StageAction action) {
@@ -63,7 +62,7 @@ void onStageButtonEvent(lv_event_t *e) {
     if (lv_event_get_code(e) != LV_EVENT_SHORT_CLICKED) {
         return;
     }
-    lv_indev_t *indev = lv_indev_get_act();
+    const lv_indev_t *indev = lv_indev_get_act();
     if (indev && lv_indev_get_scroll_obj(indev) != nullptr) {
         return;
     }

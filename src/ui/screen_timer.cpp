@@ -4,12 +4,11 @@
 
 #include "audio/haptic_click.h"
 #include "ui/nav_math.h"
+#include "ui/timer_engine.h"
 
 namespace {
 
-constexpr int64_t HOLD_RESET_US = 1500000LL; // 1.5 s long-press to reset
-constexpr uint64_t MAX_TIMER_MS = 5999000ULL; // 99:59
-constexpr uint64_t DEFAULT_TIMER_MS = 15ULL * 60000ULL; // 15:00 default ready state
+Kairos::CountdownEngine s_engine;
 
 lv_obj_t *s_timeLabel = nullptr;
 lv_obj_t *s_hintLabel = nullptr;
@@ -17,44 +16,23 @@ lv_obj_t *s_playBtn = nullptr;
 lv_obj_t *s_playLabel = nullptr;
 lv_obj_t *s_stopBtn = nullptr;
 
-uint64_t s_remainingMs = DEFAULT_TIMER_MS;
-int64_t s_targetEndUs = 0;
-bool s_running = false;
-bool s_expired = false;
-
-int64_t s_stopPressStartUs = 0;
-bool s_stopResetTriggered = false;
-
 bool isSwiping() {
-    lv_indev_t *indev = lv_indev_get_act();
+    const lv_indev_t *indev = lv_indev_get_act();
     return indev && lv_indev_get_scroll_obj(indev) != nullptr;
 }
 
-uint64_t computeRemainingMs(int64_t nowUs) {
-    if (!s_running) {
-        return s_remainingMs;
-    }
-    if (nowUs >= s_targetEndUs) {
-        return 0;
-    }
-    return static_cast<uint64_t>((s_targetEndUs - nowUs) / 1000LL);
-}
-
 void refreshTimerUi(int64_t nowUs) {
-    const uint64_t remMs = computeRemainingMs(nowUs);
-    const uint32_t displaySecs = static_cast<uint32_t>((remMs + 999ULL) / 1000ULL);
-
     char buf[8] = {};
-    KairosMath::formatTimerMMSS(displaySecs, buf, sizeof(buf));
+    KairosMath::formatTimerMMSS(s_engine.displaySeconds(nowUs), buf, sizeof(buf));
     if (s_timeLabel) {
         lv_label_set_text(s_timeLabel, buf);
     }
 
     lv_color_t accent = lv_color_hex(0xFFFFFF);
-    if (s_expired) {
+    if (s_engine.isExpired()) {
         const bool blinkOn = ((nowUs / 500000LL) % 2) == 0;
         accent = blinkOn ? lv_color_hex(0xEF4444) : lv_color_hex(0x7F1D1D);
-    } else if (remMs > 0 && remMs < 120000ULL) {
+    } else if (s_engine.isWarningAmber(nowUs)) {
         accent = lv_color_hex(0xF59E0B);
     }
 
@@ -63,23 +41,19 @@ void refreshTimerUi(int64_t nowUs) {
     }
 
     if (s_playBtn && s_playLabel) {
+        const bool running = s_engine.isRunning();
         lv_obj_set_style_bg_color(
-            s_playBtn, lv_color_hex(s_running ? 0x92400E : 0x1A4A5B), 0);
+            s_playBtn, lv_color_hex(running ? 0x92400E : 0x1A4A5B), 0);
         lv_obj_set_style_border_color(
-            s_playBtn, lv_color_hex(s_running ? 0xF59E0B : 0x3B7A8C), 0);
+            s_playBtn, lv_color_hex(running ? 0xF59E0B : 0x3B7A8C), 0);
     }
 }
 
 void timerTickCb(lv_timer_t *timer) {
     (void)timer;
     const int64_t nowUs = esp_timer_get_time();
-    if (s_running && nowUs >= s_targetEndUs) {
-        s_running = false;
-        s_remainingMs = 0;
-        if (!s_expired) {
-            s_expired = true;
-            HapticAudio::playAlarm();
-        }
+    if (s_engine.tick(nowUs)) {
+        HapticAudio::playAlarm();
     }
     refreshTimerUi(nowUs);
 }
@@ -90,16 +64,7 @@ void onPlayPauseClicked(lv_event_t *e) {
     }
     HapticAudio::playClick();
     const int64_t nowUs = esp_timer_get_time();
-    s_stopResetTriggered = false;
-
-    if (s_running) {
-        s_remainingMs = computeRemainingMs(nowUs);
-        s_running = false;
-    } else if (s_remainingMs > 0) {
-        s_expired = false;
-        s_targetEndUs = nowUs + static_cast<int64_t>(s_remainingMs) * 1000LL;
-        s_running = true;
-    }
+    s_engine.togglePlayPause(nowUs);
     refreshTimerUi(nowUs);
 }
 
@@ -108,14 +73,9 @@ void onStopResetEvent(lv_event_t *e) {
     const int64_t nowUs = esp_timer_get_time();
 
     if (code == LV_EVENT_PRESSED) {
-        s_stopPressStartUs = nowUs;
-        s_stopResetTriggered = false;
+        s_engine.beginStopHold(nowUs);
     } else if (code == LV_EVENT_PRESSING) {
-        if (!isSwiping() && !s_stopResetTriggered && (nowUs - s_stopPressStartUs) >= HOLD_RESET_US) {
-            s_stopResetTriggered = true;
-            s_running = false;
-            s_expired = false;
-            s_remainingMs = 0;
+        if (!isSwiping() && s_engine.updateStopHold(nowUs)) {
             HapticAudio::playClick();
             if (s_hintLabel) {
                 lv_label_set_text(s_hintLabel, "00:00 RESET");
@@ -123,20 +83,15 @@ void onStopResetEvent(lv_event_t *e) {
             refreshTimerUi(nowUs);
         }
     } else if (code == LV_EVENT_SHORT_CLICKED) {
-        if (!isSwiping() && !s_stopResetTriggered) {
+        if (!isSwiping() && s_engine.shortStopTap(nowUs)) {
             HapticAudio::playClick();
-            if (s_running) {
-                s_remainingMs = computeRemainingMs(nowUs);
-                s_running = false;
-            }
-            s_expired = false;
             if (s_hintLabel) {
                 lv_label_set_text(s_hintLabel, "Hold 1.5s: Reset");
             }
             refreshTimerUi(nowUs);
         }
     } else if (code == LV_EVENT_RELEASED || code == LV_EVENT_PRESS_LOST) {
-        s_stopResetTriggered = false;
+        s_engine.clearStopHold();
     }
 }
 
@@ -145,22 +100,10 @@ void onAddMinutesClicked(lv_event_t *e) {
         return;
     }
     const uint32_t mins = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(lv_event_get_user_data(e)));
-    const uint64_t addMs = static_cast<uint64_t>(mins) * 60000ULL;
     const int64_t nowUs = esp_timer_get_time();
 
     HapticAudio::playClick();
-    s_expired = false;
-    s_stopResetTriggered = false;
-
-    uint64_t currentMs = computeRemainingMs(nowUs);
-    uint64_t nextMs = currentMs + addMs;
-    if (nextMs > MAX_TIMER_MS) {
-        nextMs = MAX_TIMER_MS;
-    }
-    s_remainingMs = nextMs;
-    if (s_running) {
-        s_targetEndUs = nowUs + static_cast<int64_t>(nextMs) * 1000LL;
-    }
+    s_engine.addMinutes(mins, nowUs);
     if (s_hintLabel) {
         lv_label_set_text(s_hintLabel, "Swipe " LV_SYMBOL_LEFT);
     }
@@ -195,7 +138,6 @@ void createQuickAddButton(lv_obj_t *parent, uint32_t minutes, const char *text, 
 namespace ScreenTimer {
 
 void create(lv_obj_t *parent) {
-    // Large bold countdown digits in the upper half
     s_timeLabel = lv_label_create(parent);
     lv_label_set_text(s_timeLabel, "15:00");
     lv_obj_set_style_text_font(s_timeLabel, &lv_font_montserrat_48, 0);
@@ -203,7 +145,6 @@ void create(lv_obj_t *parent) {
     lv_obj_set_style_text_color(s_timeLabel, lv_color_hex(0xFFFFFF), 0);
     lv_obj_align(s_timeLabel, LV_ALIGN_CENTER, 0, -96);
 
-    // Main transport pill buttons: PLAY / PAUSA and STOP / RESET (1.5 s hold)
     s_playBtn = lv_btn_create(parent);
     lv_obj_set_size(s_playBtn, 174, 84);
     lv_obj_align(s_playBtn, LV_ALIGN_CENTER, -92, 6);
@@ -242,12 +183,10 @@ void create(lv_obj_t *parent) {
     lv_obj_set_style_text_color(stopLbl, lv_color_hex(0xFFFFFF), 0);
     lv_obj_center(stopLbl);
 
-    // Three circular quick-add buttons
     createQuickAddButton(parent, 1, "+1\nmin", -92, 108);
     createQuickAddButton(parent, 2, "+2\nmin",   0, 108);
     createQuickAddButton(parent, 5, "+5\nmin",  92, 108);
 
-    // Bottom swipe hint
     s_hintLabel = lv_label_create(parent);
     lv_label_set_text(s_hintLabel, "Swipe " LV_SYMBOL_LEFT);
     lv_obj_set_style_text_font(s_hintLabel, &lv_font_montserrat_14, 0);
@@ -259,17 +198,12 @@ void create(lv_obj_t *parent) {
 }
 
 void setRemainingSeconds(uint32_t seconds) {
-    s_running = false;
-    s_expired = false;
-    s_remainingMs = static_cast<uint64_t>(seconds) * 1000ULL;
-    if (s_remainingMs > MAX_TIMER_MS) {
-        s_remainingMs = MAX_TIMER_MS;
-    }
+    s_engine.setRemainingSeconds(seconds);
     refreshTimerUi(esp_timer_get_time());
 }
 
 bool isRunning() {
-    return s_running;
+    return s_engine.isRunning();
 }
 
 } // namespace ScreenTimer
