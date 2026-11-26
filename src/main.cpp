@@ -10,19 +10,12 @@
 #include "drivers/touch_spd2010.h"
 #include "ui/screen_nav.h"
 #include "ui/screen_stage.h"
+#include "ui/screen_timer.h"
 #include "ui/ui_manager.h"
 
 namespace {
 
 bool s_lastBleConnected = false;
-
-void addPlaceholderLabel(lv_obj_t *parent, const char *text) {
-    lv_obj_t *lbl = lv_label_create(parent);
-    lv_label_set_text(lbl, text);
-    lv_obj_set_style_text_color(lbl, lv_color_hex(0x94A3B8), 0);
-    lv_obj_set_style_text_font(lbl, &lv_font_montserrat_24, 0);
-    lv_obj_center(lbl);
-}
 
 } // namespace
 
@@ -55,11 +48,11 @@ void setup() {
     UiManager::begin();
     ScreenNav::create(UiManager::getTile(0));
     ScreenStage::create(UiManager::getTile(1));
-    addPlaceholderLabel(UiManager::getTile(2), "3. Cronometro");
+    ScreenTimer::create(UiManager::getTile(2));
 
     s_lastBleConnected = BleHidKeyboard::isConnected();
     UiManager::updateBleStatus(s_lastBleConnected);
-    Serial.println("[KAIROS] UI Tileview ready");
+    Serial.println("[KAIROS] All 3 views ready");
 }
 
 void loop() {
