@@ -1,5 +1,48 @@
 # Kairos-remote
 
+![Kairos-remote](docs/assets/kairos-remote-hero.png)
+
+[English](#english) · [Español](#español)
+
+---
+
+## English
+
+**Kairos-remote** is an open-source, circular **BLE HID** presentation controller built around the **Waveshare ESP32-S3-Touch-LCD-1.46** (1.46" `412×412` capacitive IPS touchscreen) with a built-in stage timer, tactile audio feedback, and a 3D-printable ergonomic enclosure tailored for **reveal.js** presentations.
+
+Instead of a conventional two-button clicker, Kairos-remote pairs as a standard **Bluetooth Low Energy HID Keyboard** (zero host drivers required on macOS, Linux, or Windows) and gives speakers full 2D slide navigation, stage shortcuts, and a local countdown timer right in the palm of their hand.
+
+### Key Features
+
+- **Driverless BLE 5.0 HID Keyboard (`NimBLE-Arduino`)**: Announces as `Kairos-remote`, queues keystrokes off the UI thread, and reconnects automatically.
+- **3 Swipeable LVGL 8.4 Views (`lv_tileview`)**:
+  1. **Radial Navigation**: 4 outer 90° arcs (`ArrowUp`, `ArrowDown`, `ArrowLeft`, `ArrowRight`) with polar hitbox dead-bands + a large central `SPACE` button for linear advance.
+  2. **Stage Control**: 4 high-contrast corner quadrants (`ESC` Overview, `b` Blackout, `HOME` First Slide, `f` Fullscreen) + a central `ENTER` confirmation button.
+  3. **Stage Countdown Timer**: Driven by `esp_timer_get_time()` so it keeps running accurately across all screens, with live `+1m`, `+2m`, `+5m` adjustments, `PLAY/PAUSE`, `1.5s` hold-to-reset protection, amber warning (`< 2 min`), and blinking red alert + double-pulse chime at `00:00`.
+- **Acoustic Haptic Feedback**: Crisp 18 ms damped mechanical click synthesized on the onboard `PCM5101` I2S speaker DAC, with a top-bar global **Mute** toggle.
+- **Power Management**: LiPo voltage ADC monitoring (`GPIO 8`, 3:1 divider), automatic PWM backlight dimming (`15%` after `10 s` idle, instant wake on touch), and Deep Sleep after `15 min` idle without BLE (wake via physical `PWR` button on `GPIO 6`).
+- **3D-Printable Enclosure (`hardware/enclosure/`)**: Parametric `build123d` & OpenSCAD pebble housing (`STL` / `STEP`) with an isolated `350–500 mAh` LiPo bay, USB-C cutout, side button access, speaker slots, and wrist lanyard loop.
+
+### Quick Start
+
+```bash
+# Run host unit tests (radial hitboxes, LiPo curve, timer formatting, HID keymap)
+pio test -e native
+
+# Build ESP32-S3 firmware
+pio run -e waveshare_esp32s3_146
+
+# Flash via USB-C and open serial monitor
+pio run -e waveshare_esp32s3_146 -t upload
+pio device monitor -b 115200
+```
+
+Open [`examples/revealjs-demo/index.html`](examples/revealjs-demo/index.html) in a browser to test all 10 BLE HID keys with the built-in live key HUD, and check [`hardware/enclosure/README.md`](hardware/enclosure/README.md) for support-free 3D printing guidelines.
+
+---
+
+## Español
+
 Controlador táctil **BLE HID** con pantalla circular capacitiva de 1.46 pulgadas (`ESP32-S3`) y temporizador local de escenario para presentaciones **reveal.js**.
 
 Sustituye los pasadores convencionales de dos botones por una superficie táctil circular con navegación 2D completa, atajos de escenario, retroalimentación acústica discreta mediante altavoz integrado, gestión energética con atenuación PWM/Deep Sleep y carcasa ergonómica imprimible en 3D.
