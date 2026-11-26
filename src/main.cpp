@@ -3,6 +3,7 @@
 #include <lvgl.h>
 
 #include "board_pins.h"
+#include "audio/haptic_click.h"
 #include "ble/hid_keyboard.h"
 #include "drivers/display_spd2010.h"
 #include "drivers/tca9554.h"
@@ -20,6 +21,7 @@ void onTestButtonClicked(lv_event_t *e) {
         lv_indev_get_point(indev, &pt);
     }
     Serial.printf("[TEST_BTN] Clicked at x=%d y=%d\n", static_cast<int>(pt.x), static_cast<int>(pt.y));
+    HapticAudio::playClick();
     if (BleHidKeyboard::isConnected()) {
         BleHidKeyboard::sendKey(KEY_RIGHT_ARROW);
     }
@@ -72,6 +74,7 @@ void setup() {
 
     TouchSpd2010::begin();
     TouchSpd2010::setSerialLogEnabled(true);
+    HapticAudio::begin();
     BleHidKeyboard::begin("Kairos-remote");
 
     lv_init();
