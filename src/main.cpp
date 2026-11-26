@@ -8,6 +8,7 @@
 #include "drivers/display_spd2010.h"
 #include "drivers/tca9554.h"
 #include "drivers/touch_spd2010.h"
+#include "power/power_manager.h"
 #include "ui/screen_nav.h"
 #include "ui/screen_stage.h"
 #include "ui/screen_timer.h"
@@ -16,6 +17,14 @@
 namespace {
 
 bool s_lastBleConnected = false;
+
+void onTouchActivity(int16_t x, int16_t y, bool pressed) {
+    (void)x;
+    (void)y;
+    if (pressed) {
+        PowerManager::notifyTouchActivity();
+    }
+}
 
 } // namespace
 
@@ -38,6 +47,7 @@ void setup() {
     }
 
     TouchSpd2010::begin();
+    TouchSpd2010::setActivityCallback(onTouchActivity);
     HapticAudio::begin();
     BleHidKeyboard::begin("Kairos-remote");
 
@@ -50,9 +60,11 @@ void setup() {
     ScreenStage::create(UiManager::getTile(1));
     ScreenTimer::create(UiManager::getTile(2));
 
+    PowerManager::begin();
+
     s_lastBleConnected = BleHidKeyboard::isConnected();
     UiManager::updateBleStatus(s_lastBleConnected);
-    Serial.println("[KAIROS] All 3 views ready");
+    Serial.println("[KAIROS] Firmware ready");
 }
 
 void loop() {
@@ -61,6 +73,7 @@ void loop() {
         s_lastBleConnected = bleNow;
         UiManager::updateBleStatus(bleNow);
     }
+    PowerManager::update(bleNow);
     lv_timer_handler();
     delay(5);
 }
