@@ -1,5 +1,7 @@
 #include "drivers/tca9554.h"
 
+#if !defined(KAIROS_BOARD_WAVESHARE_128)
+
 #include <Arduino.h>
 #include <Wire.h>
 
@@ -71,3 +73,5 @@ bool pulseReset(uint8_t bitMask, uint32_t lowMs, uint32_t highMs) {
 }
 
 } // namespace Tca9554
+
+#endif // !KAIROS_BOARD_WAVESHARE_128

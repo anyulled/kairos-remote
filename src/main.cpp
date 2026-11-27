@@ -5,9 +5,10 @@
 #include "audio/haptic_click.h"
 #include "ble/hid_keyboard.h"
 #include "board_pins.h"
-#include "drivers/display_spd2010.h"
+#include "drivers/board_hal.h"
+#if KAIROS_HAS_TCA9554
 #include "drivers/tca9554.h"
-#include "drivers/touch_spd2010.h"
+#endif
 #include "power/power_manager.h"
 #include "ui/screen_nav.h"
 #include "ui/screen_stage.h"
@@ -29,31 +30,38 @@ void onTouchActivity(int16_t x, int16_t y, bool pressed) {
 } // namespace
 
 void setup() {
+#if KAIROS_HAS_POWER_HOLD
     // Latch battery power immediately on battery boot.
     pinMode(PIN_POWER_HOLD, OUTPUT);
     digitalWrite(PIN_POWER_HOLD, HIGH);
+#endif
 
     Serial.begin(115200);
     delay(200);
     Serial.println("[KAIROS] Booting Kairos-remote...");
+    Serial.printf("[KAIROS] Board: %s | PSRAM: %u bytes\n",
+                  KAIROS_BOARD_NAME,
+                  static_cast<unsigned>(ESP.getPsramSize()));
 
     Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL, I2C_FREQ_HZ);
+#if KAIROS_HAS_TCA9554
     if (!Tca9554::begin()) {
         Serial.println("[KAIROS] ERROR: TCA9554 init failed");
     }
+#endif
 
-    if (!DisplaySpd2010::begin()) {
-        Serial.println("[KAIROS] ERROR: SPD2010 display init failed");
+    if (!DisplayHal::begin()) {
+        Serial.println("[KAIROS] ERROR: Display init failed");
     }
 
-    TouchSpd2010::begin();
-    TouchSpd2010::setActivityCallback(onTouchActivity);
+    TouchHal::begin();
+    TouchHal::setActivityCallback(onTouchActivity);
     HapticAudio::begin();
     BleHidKeyboard::begin("Kairos-remote");
 
     lv_init();
-    DisplaySpd2010::registerLvglDisplay();
-    TouchSpd2010::registerLvglTouch(28, 14);
+    DisplayHal::registerLvglDisplay();
+    TouchHal::registerLvglTouch(TOUCH_SCROLL_LIMIT, TOUCH_SCROLL_THROW);
 
     UiManager::begin();
     ScreenNav::create(UiManager::getTile(0));

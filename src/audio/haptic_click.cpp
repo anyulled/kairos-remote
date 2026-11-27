@@ -1,12 +1,14 @@
 #include "audio/haptic_click.h"
 
+#include "board_pins.h"
+
+#if KAIROS_HAS_AUDIO
+
 #include <Arduino.h>
 #include <driver/i2s.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <math.h>
-
-#include "board_pins.h"
 
 namespace {
 
@@ -182,3 +184,36 @@ bool toggleMute() {
 }
 
 } // namespace HapticAudio
+
+#else
+
+namespace {
+volatile bool s_muted = false;
+} // namespace
+
+namespace HapticAudio {
+
+bool begin() {
+    return true;
+}
+
+void playClick() {}
+
+void playAlarm() {}
+
+void setMuted(bool muted) {
+    s_muted = muted;
+}
+
+bool isMuted() {
+    return s_muted;
+}
+
+bool toggleMute() {
+    s_muted = !s_muted;
+    return s_muted;
+}
+
+} // namespace HapticAudio
+
+#endif // KAIROS_HAS_AUDIO

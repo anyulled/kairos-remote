@@ -40,6 +40,30 @@ void test_radial_deadbands(void) {
                             static_cast<uint8_t>(KairosMath::classifyRadialTouch(10, 10)));
 }
 
+void test_radial_240x240_zones(void) {
+    TEST_ASSERT_EQUAL_UINT8(static_cast<uint8_t>(NavZone::CENTER_SPACE),
+                            static_cast<uint8_t>(KairosMath::classifyRadialTouch(120, 120, 120, 46, 52, 120)));
+    TEST_ASSERT_EQUAL_UINT8(static_cast<uint8_t>(NavZone::CENTER_SPACE),
+                            static_cast<uint8_t>(KairosMath::classifyRadialTouch(140, 140, 120, 46, 52, 120)));
+
+    TEST_ASSERT_EQUAL_UINT8(static_cast<uint8_t>(NavZone::ARC_UP),
+                            static_cast<uint8_t>(KairosMath::classifyRadialTouch(120, 35, 120, 46, 52, 120)));
+    TEST_ASSERT_EQUAL_UINT8(static_cast<uint8_t>(NavZone::ARC_DOWN),
+                            static_cast<uint8_t>(KairosMath::classifyRadialTouch(120, 205, 120, 46, 52, 120)));
+    TEST_ASSERT_EQUAL_UINT8(static_cast<uint8_t>(NavZone::ARC_LEFT),
+                            static_cast<uint8_t>(KairosMath::classifyRadialTouch(35, 120, 120, 46, 52, 120)));
+    TEST_ASSERT_EQUAL_UINT8(static_cast<uint8_t>(NavZone::ARC_RIGHT),
+                            static_cast<uint8_t>(KairosMath::classifyRadialTouch(205, 120, 120, 46, 52, 120)));
+
+    // Deadbands: gap ring (46..52 px), diagonal gap (45 deg), and out-of-disc corner
+    TEST_ASSERT_EQUAL_UINT8(static_cast<uint8_t>(NavZone::NONE),
+                            static_cast<uint8_t>(KairosMath::classifyRadialTouch(120 + 49, 120, 120, 46, 52, 120)));
+    TEST_ASSERT_EQUAL_UINT8(static_cast<uint8_t>(NavZone::NONE),
+                            static_cast<uint8_t>(KairosMath::classifyRadialTouch(120 + 60, 120 + 60, 120, 46, 52, 120)));
+    TEST_ASSERT_EQUAL_UINT8(static_cast<uint8_t>(NavZone::NONE),
+                            static_cast<uint8_t>(KairosMath::classifyRadialTouch(5, 5, 120, 46, 52, 120)));
+}
+
 void test_lipo_voltage_to_percent(void) {
     TEST_ASSERT_EQUAL_UINT8(0, KairosMath::voltageMvToPercent(3100));
     TEST_ASSERT_EQUAL_UINT8(0, KairosMath::voltageMvToPercent(3300));
@@ -200,6 +224,7 @@ int main(int argc, char **argv) {
     RUN_TEST(test_radial_center_space);
     RUN_TEST(test_radial_four_arcs);
     RUN_TEST(test_radial_deadbands);
+    RUN_TEST(test_radial_240x240_zones);
     RUN_TEST(test_lipo_voltage_to_percent);
     RUN_TEST(test_timer_formatting);
     RUN_TEST(test_hid_ascii_keymap);

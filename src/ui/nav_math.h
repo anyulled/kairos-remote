@@ -27,19 +27,23 @@ constexpr int16_t ARC_OUTER_RADIUS = 206;
 constexpr float RAD_TO_DEG_F = 57.29577951308232f;
 
 /**
- * Classifies a 412x412 touch coordinate into the Screen 1 radial navigation hitboxes.
- * Includes a dead-band ring (86..96 px) and +/-4 deg diagonal gaps between adjacent arcs.
+ * Classifies a circular touch coordinate into the Screen 1 radial navigation hitboxes
+ * for arbitrary screen center and ring radii, including dead-band ring and diagonal gaps.
  */
-inline NavZone classifyRadialTouch(int16_t x, int16_t y) {
-    const int32_t dx = static_cast<int32_t>(x) - SCREEN_CENTER;
-    const int32_t dy = static_cast<int32_t>(y) - SCREEN_CENTER;
+inline NavZone classifyRadialTouch(int16_t x, int16_t y,
+                                     int16_t screenCenter,
+                                     int16_t centerBtnRadius,
+                                     int16_t arcInnerRadius,
+                                     int16_t arcOuterRadius) {
+    const int32_t dx = static_cast<int32_t>(x) - screenCenter;
+    const int32_t dy = static_cast<int32_t>(y) - screenCenter;
     const int32_t rSq = dx * dx + dy * dy;
 
-    if (rSq <= static_cast<int32_t>(CENTER_BTN_RADIUS) * CENTER_BTN_RADIUS) {
+    if (rSq <= static_cast<int32_t>(centerBtnRadius) * centerBtnRadius) {
         return NavZone::CENTER_SPACE;
     }
-    if (rSq < static_cast<int32_t>(ARC_INNER_RADIUS) * ARC_INNER_RADIUS ||
-        rSq > static_cast<int32_t>(ARC_OUTER_RADIUS) * ARC_OUTER_RADIUS) {
+    if (rSq < static_cast<int32_t>(arcInnerRadius) * arcInnerRadius ||
+        rSq > static_cast<int32_t>(arcOuterRadius) * arcOuterRadius) {
         return NavZone::NONE;
     }
 
@@ -62,6 +66,15 @@ inline NavZone classifyRadialTouch(int16_t x, int16_t y) {
         return NavZone::ARC_UP;
     }
     return NavZone::NONE;
+}
+
+/**
+ * Classifies a 412x412 touch coordinate into the Screen 1 radial navigation hitboxes.
+ * Includes a dead-band ring (86..96 px) and +/-4 deg diagonal gaps between adjacent arcs.
+ */
+inline NavZone classifyRadialTouch(int16_t x, int16_t y) {
+    return classifyRadialTouch(
+        x, y, SCREEN_CENTER, CENTER_BTN_RADIUS, ARC_INNER_RADIUS, ARC_OUTER_RADIUS);
 }
 
 /**

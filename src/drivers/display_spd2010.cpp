@@ -1,5 +1,7 @@
 #include "drivers/display_spd2010.h"
 
+#if !defined(KAIROS_BOARD_WAVESHARE_128)
+
 #include <Arduino.h>
 #include <driver/spi_master.h>
 #include <esp_heap_caps.h>
@@ -495,3 +497,5 @@ void exitSleep() {
 }
 
 } // namespace DisplaySpd2010
+
+#endif // !KAIROS_BOARD_WAVESHARE_128

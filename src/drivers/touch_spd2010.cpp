@@ -1,5 +1,7 @@
 #include "drivers/touch_spd2010.h"
 
+#if !defined(KAIROS_BOARD_WAVESHARE_128)
+
 #include <Arduino.h>
 #include <Wire.h>
 #include <esp_timer.h>
@@ -239,3 +241,5 @@ lv_indev_t *registerLvglTouch(uint8_t scrollLimit, uint8_t scrollThrow) {
 }
 
 } // namespace TouchSpd2010
+
+#endif // !KAIROS_BOARD_WAVESHARE_128

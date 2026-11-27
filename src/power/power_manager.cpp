@@ -8,7 +8,7 @@
 
 #include "ble/hid_keyboard.h"
 #include "board_pins.h"
-#include "drivers/display_spd2010.h"
+#include "drivers/board_hal.h"
 #include "power/power_state.h"
 #include "ui/ui_manager.h"
 
@@ -37,9 +37,11 @@ void publishBattery() {
 namespace PowerManager {
 
 void begin() {
+#if KAIROS_HAS_POWER_HOLD
     pinMode(PIN_POWER_HOLD, OUTPUT);
     digitalWrite(PIN_POWER_HOLD, HIGH);
-    pinMode(PIN_PWR_BTN, INPUT_PULLUP);
+#endif
+    pinMode(PIN_WAKE_BTN, INPUT_PULLUP);
 
     analogReadResolution(12);
     analogSetPinAttenuation(PIN_BAT_ADC, ADC_11db);
@@ -50,7 +52,7 @@ void begin() {
 
 void notifyTouchActivity() {
     if (s_policy.notifyTouch(esp_timer_get_time())) {
-        DisplaySpd2010::setBrightness(FULL_BRIGHTNESS_PCT);
+        DisplayHal::setBrightness(FULL_BRIGHTNESS_PCT);
     }
 }
 
@@ -63,7 +65,7 @@ void update(bool bleConnected) {
     }
 
     if (step.brightnessChanged) {
-        DisplaySpd2010::setBrightness(step.targetBrightnessPct);
+        DisplayHal::setBrightness(step.targetBrightnessPct);
     }
 
     if (step.enterDeepSleep) {
@@ -81,13 +83,15 @@ uint16_t getBatteryMillivolts() {
 }
 
 [[noreturn]] void enterDeepSleep() {
-    DisplaySpd2010::enterSleep();
+    DisplayHal::enterSleep();
     BleHidKeyboard::end();
 
+#if KAIROS_HAS_POWER_HOLD
     gpio_hold_en(static_cast<gpio_num_t>(PIN_POWER_HOLD));
     gpio_deep_sleep_hold_en();
+#endif
 
-    const gpio_num_t wakePin = static_cast<gpio_num_t>(PIN_PWR_BTN);
+    const gpio_num_t wakePin = static_cast<gpio_num_t>(PIN_WAKE_BTN);
     rtc_gpio_init(wakePin);
     rtc_gpio_set_direction(wakePin, RTC_GPIO_MODE_INPUT_ONLY);
     rtc_gpio_pullup_en(wakePin);

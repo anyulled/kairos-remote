@@ -2,6 +2,7 @@
 
 #include "audio/haptic_click.h"
 #include "ble/hid_keyboard.h"
+#include "board_pins.h"
 #include "ui/nav_math.h"
 
 namespace {
@@ -24,6 +25,44 @@ struct ArcSpec {
     int16_t txtAngleDeciDeg;
 };
 
+#ifdef KAIROS_BOARD_WAVESHARE_128
+constexpr uint16_t NAV_OUTER_ARC_SIZE = 236;
+constexpr uint16_t NAV_OUTER_ARC_WIDTH = 68;
+constexpr uint16_t NAV_RIM_ARC_SIZE = 238;
+constexpr uint16_t NAV_RIM_ARC_WIDTH = 4;
+constexpr lv_coord_t NAV_CENTER_SIZE = 88;
+constexpr lv_coord_t NAV_CENTER_BORDER = 2;
+constexpr lv_coord_t NAV_CENTER_OUTLINE = 4;
+constexpr lv_coord_t NAV_SWIPE_OFF_Y = -8;
+constexpr int16_t NAV_TOUCH_CENTER = 120;
+constexpr int16_t NAV_TOUCH_CENTER_R = 46;
+constexpr int16_t NAV_TOUCH_INNER_R = 52;
+constexpr int16_t NAV_TOUCH_OUTER_R = 120;
+
+constexpr ArcSpec kArcs[] = {
+    {NavZone::ARC_UP,    228, 312, 0x17385B, 0x2563EB, 0x3B82F6,
+     LV_SYMBOL_UP, "UP",       0, -82,    0, -68,    0},
+    {NavZone::ARC_DOWN,   48, 132, 0x152D46, 0x0D9488, 0x2DD4BF,
+     LV_SYMBOL_DOWN, "DOWN",   0,  82,    0,  66,    0},
+    {NavZone::ARC_LEFT,  138, 222, 0x17385B, 0x2563EB, 0x3B82F6,
+     LV_SYMBOL_LEFT, "LEFT", -82,  -8,  -82,   8,    0},
+    {NavZone::ARC_RIGHT, 318,  42, 0x123E3B, 0x059669, 0x34D399,
+     LV_SYMBOL_RIGHT, "RIGHT", 82, -8,   82,   8,    0},
+};
+#else
+constexpr uint16_t NAV_OUTER_ARC_SIZE = 404;
+constexpr uint16_t NAV_OUTER_ARC_WIDTH = 118;
+constexpr uint16_t NAV_RIM_ARC_SIZE = 406;
+constexpr uint16_t NAV_RIM_ARC_WIDTH = 7;
+constexpr lv_coord_t NAV_CENTER_SIZE = 154;
+constexpr lv_coord_t NAV_CENTER_BORDER = 3;
+constexpr lv_coord_t NAV_CENTER_OUTLINE = 5;
+constexpr lv_coord_t NAV_SWIPE_OFF_Y = -18;
+constexpr int16_t NAV_TOUCH_CENTER = KairosMath::SCREEN_CENTER;
+constexpr int16_t NAV_TOUCH_CENTER_R = KairosMath::CENTER_BTN_RADIUS;
+constexpr int16_t NAV_TOUCH_INNER_R = KairosMath::ARC_INNER_RADIUS;
+constexpr int16_t NAV_TOUCH_OUTER_R = KairosMath::ARC_OUTER_RADIUS;
+
 constexpr ArcSpec kArcs[] = {
     {NavZone::ARC_UP,    228, 312, 0x17385B, 0x2563EB, 0x3B82F6,
      LV_SYMBOL_UP, "UP",       0, -148,    0, -120,    0},
@@ -34,6 +73,7 @@ constexpr ArcSpec kArcs[] = {
     {NavZone::ARC_RIGHT, 318,  42, 0x123E3B, 0x059669, 0x34D399,
      LV_SYMBOL_RIGHT, "RIGHT", 142, -14,  142,  12,    0},
 };
+#endif
 
 lv_obj_t *s_arcObjs[4] = {nullptr, nullptr, nullptr, nullptr};
 lv_obj_t *s_centerBtn = nullptr;
@@ -81,7 +121,8 @@ void onTileTouchEvent(lv_event_t *e) {
     if (code == LV_EVENT_PRESSED) {
         lv_point_t pt = {};
         lv_indev_get_point(indev, &pt);
-        s_pressedZone = KairosMath::classifyRadialTouch(pt.x, pt.y);
+        s_pressedZone = KairosMath::classifyRadialTouch(
+            pt.x, pt.y, NAV_TOUCH_CENTER, NAV_TOUCH_CENTER_R, NAV_TOUCH_INNER_R, NAV_TOUCH_OUTER_R);
         setZoneHighlight(s_pressedZone, true);
     } else if (code == LV_EVENT_PRESS_LOST || code == LV_EVENT_RELEASED) {
         if (s_pressedZone != NavZone::NONE) {
@@ -120,22 +161,38 @@ lv_obj_t *createArcLayer(lv_obj_t *parent, uint16_t sizePx, uint16_t widthPx,
 namespace ScreenNav {
 
 void create(lv_obj_t *parent) {
+#ifdef KAIROS_BOARD_WAVESHARE_128
+    const lv_font_t *symFont = &lv_font_montserrat_12;
+    const lv_font_t *txtFont = &lv_font_montserrat_10;
+    const lv_font_t *spaceFont = &lv_font_montserrat_14;
+    const lv_font_t *subFont = &lv_font_montserrat_10;
+    const lv_font_t *swipeFont = &lv_font_montserrat_10;
+#else
+    const lv_font_t *symFont = &lv_font_montserrat_20;
+    const lv_font_t *txtFont = &lv_font_montserrat_18;
+    const lv_font_t *spaceFont = &lv_font_montserrat_24;
+    const lv_font_t *subFont = &lv_font_montserrat_14;
+    const lv_font_t *swipeFont = &lv_font_montserrat_14;
+#endif
+
     for (size_t i = 0; i < 4; ++i) {
         const auto &spec = kArcs[i];
         // Filled wedge sector + glowing outer rim arc
-        s_arcObjs[i] = createArcLayer(parent, 404, 118, spec.startDeg, spec.endDeg, spec.fillIdleHex);
-        createArcLayer(parent, 406, 7, spec.startDeg, spec.endDeg, spec.rimHex);
+        s_arcObjs[i] = createArcLayer(
+            parent, NAV_OUTER_ARC_SIZE, NAV_OUTER_ARC_WIDTH, spec.startDeg, spec.endDeg, spec.fillIdleHex);
+        createArcLayer(
+            parent, NAV_RIM_ARC_SIZE, NAV_RIM_ARC_WIDTH, spec.startDeg, spec.endDeg, spec.rimHex);
 
         lv_obj_t *sym = lv_label_create(parent);
         lv_label_set_text(sym, spec.symbol);
-        lv_obj_set_style_text_font(sym, &lv_font_montserrat_20, 0);
+        lv_obj_set_style_text_font(sym, symFont, 0);
         lv_obj_set_style_text_color(sym, lv_color_hex(0xFFFFFF), 0);
         lv_obj_align(sym, LV_ALIGN_CENTER, spec.symOffX, spec.symOffY);
         lv_obj_clear_flag(sym, LV_OBJ_FLAG_CLICKABLE);
 
         lv_obj_t *txt = lv_label_create(parent);
         lv_label_set_text(txt, spec.text);
-        lv_obj_set_style_text_font(txt, &lv_font_montserrat_18, 0);
+        lv_obj_set_style_text_font(txt, txtFont, 0);
         lv_obj_set_style_text_color(txt, lv_color_hex(0xE2E8F0), 0);
         if (spec.txtAngleDeciDeg != 0) {
             lv_obj_set_style_transform_pivot_x(txt, LV_PCT(50), 0);
@@ -148,14 +205,14 @@ void create(lv_obj_t *parent) {
 
     // Center SPACE circle with crisp black halo separation
     s_centerBtn = lv_obj_create(parent);
-    lv_obj_set_size(s_centerBtn, 154, 154);
+    lv_obj_set_size(s_centerBtn, NAV_CENTER_SIZE, NAV_CENTER_SIZE);
     lv_obj_center(s_centerBtn);
     lv_obj_set_style_radius(s_centerBtn, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_color(s_centerBtn, lv_color_hex(0x215E6E), 0);
     lv_obj_set_style_bg_opa(s_centerBtn, LV_OPA_COVER, 0);
-    lv_obj_set_style_border_width(s_centerBtn, 3, 0);
+    lv_obj_set_style_border_width(s_centerBtn, NAV_CENTER_BORDER, 0);
     lv_obj_set_style_border_color(s_centerBtn, lv_color_hex(0x4BA3B5), 0);
-    lv_obj_set_style_outline_width(s_centerBtn, 5, 0);
+    lv_obj_set_style_outline_width(s_centerBtn, NAV_CENTER_OUTLINE, 0);
     lv_obj_set_style_outline_color(s_centerBtn, lv_color_hex(0x000000), 0);
     lv_obj_clear_flag(s_centerBtn, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_clear_flag(s_centerBtn, LV_OBJ_FLAG_SCROLLABLE);
@@ -174,20 +231,20 @@ void create(lv_obj_t *parent) {
 
     lv_obj_t *spaceLbl = lv_label_create(centerBox);
     lv_label_set_text(spaceLbl, "SPACE");
-    lv_obj_set_style_text_font(spaceLbl, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_text_font(spaceLbl, spaceFont, 0);
     lv_obj_set_style_text_color(spaceLbl, lv_color_hex(0xFFFFFF), 0);
 
     lv_obj_t *subLbl = lv_label_create(centerBox);
     lv_label_set_text(subLbl, "(AVANCE)");
-    lv_obj_set_style_text_font(subLbl, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(subLbl, subFont, 0);
     lv_obj_set_style_text_color(subLbl, lv_color_hex(0xE2E8F0), 0);
 
     // Subtle bottom swipe cue
     lv_obj_t *swipeLbl = lv_label_create(parent);
     lv_label_set_text(swipeLbl, LV_SYMBOL_LEFT " Swipe " LV_SYMBOL_RIGHT);
-    lv_obj_set_style_text_font(swipeLbl, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(swipeLbl, swipeFont, 0);
     lv_obj_set_style_text_color(swipeLbl, lv_color_hex(0xCBD5E1), 0);
-    lv_obj_align(swipeLbl, LV_ALIGN_BOTTOM_MID, 0, -18);
+    lv_obj_align(swipeLbl, LV_ALIGN_BOTTOM_MID, 0, NAV_SWIPE_OFF_Y);
     lv_obj_clear_flag(swipeLbl, LV_OBJ_FLAG_CLICKABLE);
 
     lv_obj_add_flag(parent, LV_OBJ_FLAG_CLICKABLE);

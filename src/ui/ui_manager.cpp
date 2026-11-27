@@ -12,8 +12,10 @@ lv_obj_t *s_tiles[TILE_COUNT] = {nullptr, nullptr, nullptr};
 
 lv_obj_t *s_statusPill = nullptr;
 lv_obj_t *s_batLabel = nullptr;
+#if KAIROS_HAS_AUDIO
 lv_obj_t *s_muteBtn = nullptr;
 lv_obj_t *s_muteLabel = nullptr;
+#endif
 lv_obj_t *s_bleLabel = nullptr;
 
 uint8_t s_activeTile = 0;
@@ -37,6 +39,7 @@ void onTileChanged(lv_event_t *e) {
     }
 }
 
+#if KAIROS_HAS_AUDIO
 void onMuteClicked(lv_event_t *e) {
     (void)e;
     const bool muted = HapticAudio::toggleMute();
@@ -45,26 +48,42 @@ void onMuteClicked(lv_event_t *e) {
     }
     UiManager::refreshMuteIcon();
 }
+#endif
 
 void createStatusBar() {
     lv_obj_t *topLayer = lv_layer_top();
 
+#ifdef KAIROS_BOARD_WAVESHARE_128
+    constexpr lv_coord_t pillW = 112;
+    constexpr lv_coord_t pillH = 18;
+    constexpr lv_coord_t pillY = 10;
+    constexpr lv_coord_t pillPadHor = 8;
+    const lv_font_t *statusFont = &lv_font_montserrat_10;
+#else
+    constexpr lv_coord_t pillW = 174;
+    constexpr lv_coord_t pillH = 24;
+    constexpr lv_coord_t pillY = 14;
+    constexpr lv_coord_t pillPadHor = 10;
+    const lv_font_t *statusFont = &lv_font_montserrat_14;
+#endif
+
     s_statusPill = lv_obj_create(topLayer);
-    lv_obj_set_size(s_statusPill, 174, 24);
-    lv_obj_align(s_statusPill, LV_ALIGN_TOP_MID, 0, 14);
+    lv_obj_set_size(s_statusPill, pillW, pillH);
+    lv_obj_align(s_statusPill, LV_ALIGN_TOP_MID, 0, pillY);
     lv_obj_set_style_radius(s_statusPill, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_color(s_statusPill, lv_color_hex(0x000000), 0);
     lv_obj_set_style_bg_opa(s_statusPill, LV_OPA_70, 0);
     lv_obj_set_style_border_width(s_statusPill, 0, 0);
-    lv_obj_set_style_pad_hor(s_statusPill, 10, 0);
+    lv_obj_set_style_pad_hor(s_statusPill, pillPadHor, 0);
     lv_obj_set_style_pad_ver(s_statusPill, 0, 0);
     lv_obj_clear_flag(s_statusPill, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_flex_flow(s_statusPill, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(s_statusPill, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
 
     s_batLabel = lv_label_create(s_statusPill);
-    lv_obj_set_style_text_font(s_batLabel, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(s_batLabel, statusFont, 0);
 
+#if KAIROS_HAS_AUDIO
     s_muteBtn = lv_btn_create(s_statusPill);
     lv_obj_set_size(s_muteBtn, 26, 20);
     lv_obj_set_style_radius(s_muteBtn, LV_RADIUS_CIRCLE, 0);
@@ -75,11 +94,12 @@ void createStatusBar() {
     lv_obj_add_event_cb(s_muteBtn, onMuteClicked, LV_EVENT_CLICKED, nullptr);
 
     s_muteLabel = lv_label_create(s_muteBtn);
-    lv_obj_set_style_text_font(s_muteLabel, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(s_muteLabel, statusFont, 0);
     lv_obj_center(s_muteLabel);
+#endif
 
     s_bleLabel = lv_label_create(s_statusPill);
-    lv_obj_set_style_text_font(s_bleLabel, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(s_bleLabel, statusFont, 0);
 }
 
 const char *batterySymbolFor(uint8_t percent, bool charging) {
@@ -178,6 +198,7 @@ void updateBattery(uint8_t percent, bool charging) {
 }
 
 void refreshMuteIcon() {
+#if KAIROS_HAS_AUDIO
     if (!s_muteLabel) {
         return;
     }
@@ -185,6 +206,7 @@ void refreshMuteIcon() {
     lv_label_set_text(s_muteLabel, muted ? LV_SYMBOL_MUTE : LV_SYMBOL_VOLUME_MAX);
     lv_obj_set_style_text_color(
         s_muteLabel, muted ? lv_color_hex(0xF87171) : lv_color_hex(0xCBD5E1), 0);
+#endif
 }
 
 } // namespace UiManager

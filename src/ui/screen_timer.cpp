@@ -111,8 +111,16 @@ void onAddMinutesClicked(lv_event_t *e) {
 }
 
 void createQuickAddButton(lv_obj_t *parent, uint32_t minutes, const char *text, int16_t offX, int16_t offY) {
+#ifdef KAIROS_BOARD_WAVESHARE_128
+    constexpr lv_coord_t addSize = 48;
+    const lv_font_t *addFont = &lv_font_montserrat_10;
+#else
+    constexpr lv_coord_t addSize = 80;
+    const lv_font_t *addFont = &lv_font_montserrat_18;
+#endif
+
     lv_obj_t *btn = lv_btn_create(parent);
-    lv_obj_set_size(btn, 80, 80);
+    lv_obj_set_size(btn, addSize, addSize);
     lv_obj_align(btn, LV_ALIGN_CENTER, offX, offY);
     lv_obj_set_style_radius(btn, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_color(btn, lv_color_hex(0x1A4A5B), 0);
@@ -128,7 +136,7 @@ void createQuickAddButton(lv_obj_t *parent, uint32_t minutes, const char *text, 
     lv_obj_t *lbl = lv_label_create(btn);
     lv_label_set_text(lbl, text);
     lv_obj_set_style_text_align(lbl, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_set_style_text_font(lbl, &lv_font_montserrat_18, 0);
+    lv_obj_set_style_text_font(lbl, addFont, 0);
     lv_obj_set_style_text_color(lbl, lv_color_hex(0xF8FAFC), 0);
     lv_obj_center(lbl);
 }
@@ -138,17 +146,47 @@ void createQuickAddButton(lv_obj_t *parent, uint32_t minutes, const char *text, 
 namespace ScreenTimer {
 
 void create(lv_obj_t *parent) {
+#ifdef KAIROS_BOARD_WAVESHARE_128
+    const lv_font_t *timeFont = &lv_font_montserrat_36;
+    constexpr lv_coord_t timeLetterSpace = 2;
+    constexpr lv_coord_t timeOffY = -54;
+    constexpr lv_coord_t pillW = 102;
+    constexpr lv_coord_t pillH = 48;
+    constexpr lv_coord_t pillRadius = 24;
+    constexpr lv_coord_t pillOffX = 54;
+    constexpr lv_coord_t pillOffY = 4;
+    const lv_font_t *pillFont = &lv_font_montserrat_12;
+    constexpr lv_coord_t quickOffX = 54;
+    constexpr lv_coord_t quickOffY = 62;
+    const lv_font_t *hintFont = &lv_font_montserrat_10;
+    constexpr lv_coord_t hintOffY = -8;
+#else
+    const lv_font_t *timeFont = &lv_font_montserrat_48;
+    constexpr lv_coord_t timeLetterSpace = 3;
+    constexpr lv_coord_t timeOffY = -96;
+    constexpr lv_coord_t pillW = 174;
+    constexpr lv_coord_t pillH = 84;
+    constexpr lv_coord_t pillRadius = 42;
+    constexpr lv_coord_t pillOffX = 92;
+    constexpr lv_coord_t pillOffY = 6;
+    const lv_font_t *pillFont = &lv_font_montserrat_20;
+    constexpr lv_coord_t quickOffX = 92;
+    constexpr lv_coord_t quickOffY = 108;
+    const lv_font_t *hintFont = &lv_font_montserrat_14;
+    constexpr lv_coord_t hintOffY = -14;
+#endif
+
     s_timeLabel = lv_label_create(parent);
     lv_label_set_text(s_timeLabel, "15:00");
-    lv_obj_set_style_text_font(s_timeLabel, &lv_font_montserrat_48, 0);
-    lv_obj_set_style_text_letter_space(s_timeLabel, 3, 0);
+    lv_obj_set_style_text_font(s_timeLabel, timeFont, 0);
+    lv_obj_set_style_text_letter_space(s_timeLabel, timeLetterSpace, 0);
     lv_obj_set_style_text_color(s_timeLabel, lv_color_hex(0xFFFFFF), 0);
-    lv_obj_align(s_timeLabel, LV_ALIGN_CENTER, 0, -96);
+    lv_obj_align(s_timeLabel, LV_ALIGN_CENTER, 0, timeOffY);
 
     s_playBtn = lv_btn_create(parent);
-    lv_obj_set_size(s_playBtn, 174, 84);
-    lv_obj_align(s_playBtn, LV_ALIGN_CENTER, -92, 6);
-    lv_obj_set_style_radius(s_playBtn, 42, 0);
+    lv_obj_set_size(s_playBtn, pillW, pillH);
+    lv_obj_align(s_playBtn, LV_ALIGN_CENTER, -pillOffX, pillOffY);
+    lv_obj_set_style_radius(s_playBtn, pillRadius, 0);
     lv_obj_set_style_bg_color(s_playBtn, lv_color_hex(0x1A4A5B), 0);
     lv_obj_set_style_bg_color(s_playBtn, lv_color_hex(0x0284C7), LV_STATE_PRESSED);
     lv_obj_set_style_border_width(s_playBtn, 2, 0);
@@ -160,14 +198,14 @@ void create(lv_obj_t *parent) {
     s_playLabel = lv_label_create(s_playBtn);
     lv_label_set_text(s_playLabel, "PLAY /\nPAUSA");
     lv_obj_set_style_text_align(s_playLabel, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_set_style_text_font(s_playLabel, &lv_font_montserrat_20, 0);
+    lv_obj_set_style_text_font(s_playLabel, pillFont, 0);
     lv_obj_set_style_text_color(s_playLabel, lv_color_hex(0xFFFFFF), 0);
     lv_obj_center(s_playLabel);
 
     s_stopBtn = lv_btn_create(parent);
-    lv_obj_set_size(s_stopBtn, 174, 84);
-    lv_obj_align(s_stopBtn, LV_ALIGN_CENTER, 92, 6);
-    lv_obj_set_style_radius(s_stopBtn, 42, 0);
+    lv_obj_set_size(s_stopBtn, pillW, pillH);
+    lv_obj_align(s_stopBtn, LV_ALIGN_CENTER, pillOffX, pillOffY);
+    lv_obj_set_style_radius(s_stopBtn, pillRadius, 0);
     lv_obj_set_style_bg_color(s_stopBtn, lv_color_hex(0x3A3D40), 0);
     lv_obj_set_style_bg_color(s_stopBtn, lv_color_hex(0xDC2626), LV_STATE_PRESSED);
     lv_obj_set_style_border_width(s_stopBtn, 2, 0);
@@ -179,19 +217,19 @@ void create(lv_obj_t *parent) {
     lv_obj_t *stopLbl = lv_label_create(s_stopBtn);
     lv_label_set_text(stopLbl, "STOP /\nRESET");
     lv_obj_set_style_text_align(stopLbl, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_set_style_text_font(stopLbl, &lv_font_montserrat_20, 0);
+    lv_obj_set_style_text_font(stopLbl, pillFont, 0);
     lv_obj_set_style_text_color(stopLbl, lv_color_hex(0xFFFFFF), 0);
     lv_obj_center(stopLbl);
 
-    createQuickAddButton(parent, 1, "+1\nmin", -92, 108);
-    createQuickAddButton(parent, 2, "+2\nmin",   0, 108);
-    createQuickAddButton(parent, 5, "+5\nmin",  92, 108);
+    createQuickAddButton(parent, 1, "+1\nmin", -quickOffX, quickOffY);
+    createQuickAddButton(parent, 2, "+2\nmin",          0, quickOffY);
+    createQuickAddButton(parent, 5, "+5\nmin",  quickOffX, quickOffY);
 
     s_hintLabel = lv_label_create(parent);
     lv_label_set_text(s_hintLabel, "Swipe " LV_SYMBOL_LEFT);
-    lv_obj_set_style_text_font(s_hintLabel, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(s_hintLabel, hintFont, 0);
     lv_obj_set_style_text_color(s_hintLabel, lv_color_hex(0xCBD5E1), 0);
-    lv_obj_align(s_hintLabel, LV_ALIGN_BOTTOM_MID, 0, -14);
+    lv_obj_align(s_hintLabel, LV_ALIGN_BOTTOM_MID, 0, hintOffY);
 
     lv_timer_create(timerTickCb, 100, nullptr);
     refreshTimerUi(esp_timer_get_time());

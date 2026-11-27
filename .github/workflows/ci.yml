@@ -33,10 +33,14 @@ jobs:
         run: pio test -e native
 
       - name: Install ESP32-S3 dependencies for cppcheck
-        run: pio pkg install -e waveshare_esp32s3_146
+        run: |
+          pio pkg install -e waveshare_esp32s3_146
+          pio pkg install -e waveshare_esp32s3_128
 
-      - name: Run cppcheck static analysis
-        run: pio check -e waveshare_esp32s3_146 --skip-packages --fail-on-defect=low --fail-on-defect=medium --fail-on-defect=high
+      - name: Run cppcheck static analysis (1.46 & 1.28)
+        run: |
+          pio check -e waveshare_esp32s3_146 --skip-packages --fail-on-defect=low --fail-on-defect=medium --fail-on-defect=high
+          pio check -e waveshare_esp32s3_128 --skip-packages --fail-on-defect=low --fail-on-defect=medium --fail-on-defect=high
 
   build-firmware:
     name: Build ESP32-S3 Firmware
@@ -61,11 +65,15 @@ jobs:
       - name: Install PlatformIO
         run: pip install --upgrade platformio
 
-      - name: Compile firmware (waveshare_esp32s3_146)
-        run: pio run -e waveshare_esp32s3_146
+      - name: Compile firmware (waveshare_esp32s3_146 & waveshare_esp32s3_128)
+        run: |
+          pio run -e waveshare_esp32s3_146
+          pio run -e waveshare_esp32s3_128
 
-      - name: Upload firmware artifact
+      - name: Upload firmware artifacts
         uses: actions/upload-artifact@v7
         with:
           name: kairos-remote-firmware
-          path: .pio/build/waveshare_esp32s3_146/firmware.bin
+          path: |
+            .pio/build/waveshare_esp32s3_146/firmware.bin
+            .pio/build/waveshare_esp32s3_128/firmware.bin

@@ -11,7 +11,7 @@
 
 ## English
 
-**Kairos-remote** is an open-source, circular **BLE HID** presentation controller built around the **Waveshare ESP32-S3-Touch-LCD-1.46** (1.46" `412×412` capacitive IPS touchscreen) with a built-in stage timer, tactile audio feedback, and a 3D-printable ergonomic enclosure tailored for **reveal.js** presentations.
+**Kairos-remote** is an open-source, circular **BLE HID** presentation controller built around the **Waveshare ESP32-S3-Touch-LCD-1.46** (1.46" `412×412` capacitive IPS touchscreen) with a built-in stage timer, tactile audio feedback, and a 3D-printable ergonomic enclosure tailored for **reveal.js** presentations. It also includes a **`waveshare_esp32s3_128`** build target for the **Waveshare ESP32-S3-Touch-LCD-1.28** (1.28" `240×240` `GC9A01A` + `CST816S`, without onboard speaker).
 
 Instead of a conventional two-button clicker, Kairos-remote pairs as a standard **Bluetooth Low Energy HID Keyboard** (zero host drivers required on macOS, Linux, or Windows) and gives speakers full 2D slide navigation, stage shortcuts, and a local countdown timer right in the palm of their hand.
 
@@ -40,8 +40,9 @@ pio check -e waveshare_esp32s3_146 --skip-packages --fail-on-defect=low --fail-o
 # Build ESP32-S3 firmware (-Wall -Wextra -Wshadow -Werror on src/)
 pio run -e waveshare_esp32s3_146
 
-# Flash via USB-C and open serial monitor
+# Flash via USB-C and open serial monitor (1.46" default, or 1.28" variant)
 pio run -e waveshare_esp32s3_146 -t upload
+pio run -e waveshare_esp32s3_128 -t upload
 pio device monitor -b 115200
 ```
 
@@ -159,11 +160,14 @@ pio test -e native
 # 2. Ejecutar análisis estático (cppcheck)
 pio check -e waveshare_esp32s3_146 --skip-packages --fail-on-defect=low --fail-on-defect=medium --fail-on-defect=high
 
-# 3. Compilar el firmware para Waveshare ESP32-S3-Touch-LCD-1.46
+# 3. Compilar el firmware para Waveshare ESP32-S3-Touch-LCD-1.46 (o 1.28: 240x240, sin altavoz integrado)
 pio run -e waveshare_esp32s3_146
+pio run -e waveshare_esp32s3_128
 
 # 4. Flashear por USB-C (si no entra automático, mantén BOOT al conectar/pulsar RESET)
 pio run -e waveshare_esp32s3_146 -t upload
+# Para la placa 1.28":
+pio run -e waveshare_esp32s3_128 -t upload
 
 # 5. Abrir monitor serie (115200 baudios)
 pio device monitor -b 115200
